@@ -1,0 +1,7 @@
+{
+  "name": "Copy of VocabMaster AI",
+  "description": "An advanced English vocabulary coach that transforms words into comprehensive study lessons with phonetics, context, and practice activities.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
