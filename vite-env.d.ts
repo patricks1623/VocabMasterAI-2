@@ -1,7 +1,7 @@
-// Manually declare process.env to fix missing vite/client types
-declare const process: {
-  env: {
-    [key: string]: string | undefined;
+/// <reference types="vite/client" />
+
+declare namespace NodeJS {
+  interface ProcessEnv {
     API_KEY: string;
   }
-};
+}

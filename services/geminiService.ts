@@ -1,9 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GenerateRequest, VocabularyResponse, PronunciationResult } from "../types";
 
-// Initialize the Gemini client
-// The API key is strictly retrieved from the environment variable
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Note: The API key is strictly retrieved from the environment variable process.env.API_KEY
+// We initialize the client inside functions to prevent the app from crashing on load 
+// if the key is missing or the environment isn't fully loaded yet.
 
 const responseSchema = {
   type: Type.OBJECT,
@@ -61,6 +61,9 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
     : `Word: "${request.word}". Analyze this word (use most common meaning).`;
 
   try {
+    // Initialize AI client here to ensure process.env is available and catch errors gracefully
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -86,6 +89,8 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
 
 export const generateImageForWord = async (word: string): Promise<string | undefined> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -116,6 +121,8 @@ export const generateImageForWord = async (word: string): Promise<string | undef
 
 export const evaluatePronunciation = async (word: string, base64Audio: string, mimeType: string): Promise<PronunciationResult> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: {
