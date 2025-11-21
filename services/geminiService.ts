@@ -1,11 +1,11 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { GenerateRequest, VocabularyResponse, PronunciationResult } from "../types";
 
 // Initialize the Gemini client
 // The API key is strictly retrieved from the environment variable
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-const responseSchema: Schema = {
+const responseSchema = {
   type: Type.OBJECT,
   properties: {
     word: { type: Type.STRING, description: "The word provided by the user." },
@@ -31,7 +31,7 @@ const responseSchema: Schema = {
   required: ["word", "meaning", "phonetics", "partOfSpeech", "exampleSentences", "grammarNote", "practice"]
 };
 
-const pronunciationSchema: Schema = {
+const pronunciationSchema = {
   type: Type.OBJECT,
   properties: {
     score: { type: Type.NUMBER, description: "A score from 0 to 100 representing pronunciation accuracy. Be generous for beginners." },
