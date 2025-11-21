@@ -118,8 +118,10 @@ function App() {
       addToHistory(completeResult);
       setView('result');
 
-    } catch (err) {
-      setError("I couldn't analyze that word right now. Please try again.");
+    } catch (err: any) {
+      console.error("Operation failed:", err);
+      // Show the actual error message for debugging
+      setError(err.message || "An unexpected error occurred. Please check your API Key and try again.");
     } finally {
       setIsLoading(false);
     }
@@ -234,6 +236,7 @@ function App() {
             {/* Error State */}
             {error && (
               <div className="max-w-xl mx-auto mb-8 p-4 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-200 rounded-lg border border-red-100 dark:border-red-900 text-center">
+                <span className="font-bold block mb-1">Error:</span>
                 {error}
               </div>
             )}

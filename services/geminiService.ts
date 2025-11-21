@@ -1,9 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GenerateRequest, VocabularyResponse, PronunciationResult } from "../types";
 
-// Note: The API key is strictly retrieved from the environment variable process.env.API_KEY
-// We initialize the client inside functions to prevent the app from crashing on load 
-// if the key is missing or the environment isn't fully loaded yet.
+// Utility to clean JSON if the model returns markdown formatting
+const cleanJsonText = (text: string): string => {
+  if (!text) return "";
+  let clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
+  // Ensure we start with { and end with }
+  const firstBrace = clean.indexOf('{');
+  const lastBrace = clean.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace >= 0) {
+    clean = clean.substring(firstBrace, lastBrace + 1);
+  }
+  return clean;
+};
 
 const responseSchema = {
   type: Type.OBJECT,
@@ -60,9 +69,14 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
     ? `Word: "${request.word}". Context provided by user: "${request.context}". Analyze this word.`
     : `Word: "${request.word}". Analyze this word (use most common meaning).`;
 
+  // Strict API Key Check
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey.trim() === '') {
+    throw new Error("API Key is missing. Please check your Netlify Site Configuration > Environment Variables and ensure 'API_KEY' is set.");
+  }
+
   try {
-    // Initialize AI client here to ensure process.env is available and catch errors gracefully
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: apiKey });
     
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -71,7 +85,7 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
         systemInstruction: SYSTEM_INSTRUCTION,
         responseMimeType: "application/json",
         responseSchema: responseSchema,
-        temperature: 0.7, // Slightly creative but focused
+        temperature: 0.7,
       }
     });
 
@@ -80,7 +94,15 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
       throw new Error("No response received from Gemini.");
     }
 
-    return JSON.parse(textResponse) as VocabularyResponse;
+    // Attempt to clean and parse
+    const cleanedText = cleanJsonText(textResponse);
+    try {
+      return JSON.parse(cleanedText) as VocabularyResponse;
+    } catch (e) {
+      console.error("JSON Parse Error. Raw text:", textResponse);
+      throw new Error("Failed to parse the AI response. Please try again.");
+    }
+
   } catch (error) {
     console.error("Error generating vocabulary lesson:", error);
     throw error;
@@ -88,8 +110,11 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
 };
 
 export const generateImageForWord = async (word: string): Promise<string | undefined> => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) return undefined;
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: apiKey });
     
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -114,14 +139,18 @@ export const generateImageForWord = async (word: string): Promise<string | undef
     }
     return undefined;
   } catch (error) {
-    console.error("Error generating vocabulary image:", error);
+    // Image generation errors should not block the main lesson
+    console.warn("Error generating vocabulary image (non-fatal):", error);
     return undefined;
   }
 };
 
 export const evaluatePronunciation = async (word: string, base64Audio: string, mimeType: string): Promise<PronunciationResult> => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) throw new Error("API Key missing for evaluation");
+
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: apiKey });
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -156,7 +185,8 @@ export const evaluatePronunciation = async (word: string, base64Audio: string, m
       throw new Error("No response received for pronunciation evaluation.");
     }
 
-    return JSON.parse(textResponse) as PronunciationResult;
+    const cleanedText = cleanJsonText(textResponse);
+    return JSON.parse(cleanedText) as PronunciationResult;
   } catch (error) {
     console.error("Error evaluating pronunciation:", error);
     throw error;
