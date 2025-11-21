@@ -6,9 +6,23 @@ export default defineConfig(({ mode }) => {
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, '.', '');
   
+  // Robustly check for the API key in various common environment variable locations
   // Prioritize system variables (process.env), then loaded .env variables.
-  // Check strictly for API_KEY, then VITE_API_KEY, then GOOGLE_API_KEY.
-  const apiKey = process.env.API_KEY || env.API_KEY || env.VITE_API_KEY || env.GOOGLE_API_KEY || '';
+  const apiKey = 
+    process.env.API_KEY || 
+    env.API_KEY || 
+    env.VITE_API_KEY || 
+    env.GOOGLE_API_KEY || 
+    env.VITE_GOOGLE_API_KEY ||
+    env.REACT_APP_API_KEY ||
+    '';
+
+  // Log status during build (visible in terminal/build logs)
+  if (!apiKey) {
+    console.warn("⚠️  WARNING: No API_KEY found in environment variables or .env file. The app may not function correctly.");
+  } else {
+    console.log("✅ API_KEY loaded successfully for build.");
+  }
   
   return {
     plugins: [react()],

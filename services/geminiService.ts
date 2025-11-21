@@ -64,13 +64,24 @@ Logic:
 4. Do not include the URL generation in the text response; simply provide the data. The frontend application will handle URL generation for YouGlish and Images based on the word you return.
 `;
 
+// Helper to validate key safely
+const getApiKey = (): string => {
+  const key = process.env.API_KEY;
+  if (!key || key.trim() === '') {
+    throw new Error("API Key is missing. If you are on a hosted platform (Netlify/Vercel), ensure the Environment Variable is set and you have redeployed the site.");
+  }
+  return key;
+};
+
 export const generateVocabularyLesson = async (request: GenerateRequest): Promise<VocabularyResponse> => {
   const prompt = request.context 
     ? `Word: "${request.word}". Context provided by user: "${request.context}". Analyze this word.`
     : `Word: "${request.word}". Analyze this word (use most common meaning).`;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // Validation throws explicit error before SDK can fail
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
     
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -94,7 +105,7 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
       return JSON.parse(cleanedText) as VocabularyResponse;
     } catch (e) {
       console.error("JSON Parse Error. Raw text:", textResponse);
-      throw new Error("Failed to parse the AI response. Please try again.");
+      throw new Error("Failed to parse the AI response. The model output was not valid JSON.");
     }
 
   } catch (error) {
@@ -104,10 +115,12 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
 };
 
 export const generateImageForWord = async (word: string): Promise<string | undefined> => {
-  if (!process.env.API_KEY) return undefined;
+  // For images, we fail silently/gracefully if key is missing to not break the main flow if called separately
+  const key = process.env.API_KEY;
+  if (!key) return undefined;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: key });
     
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -139,10 +152,9 @@ export const generateImageForWord = async (word: string): Promise<string | undef
 };
 
 export const evaluatePronunciation = async (word: string, base64Audio: string, mimeType: string): Promise<PronunciationResult> => {
-  if (!process.env.API_KEY) throw new Error("API Key missing for evaluation");
-
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getApiKey();
+    const ai = new GoogleGenAI({ apiKey });
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
