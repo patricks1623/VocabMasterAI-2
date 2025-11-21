@@ -69,14 +69,8 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
     ? `Word: "${request.word}". Context provided by user: "${request.context}". Analyze this word.`
     : `Word: "${request.word}". Analyze this word (use most common meaning).`;
 
-  // Strict API Key Check
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey.trim() === '') {
-    throw new Error("API Key is missing. Please check your Netlify Site Configuration > Environment Variables and ensure 'API_KEY' is set.");
-  }
-
   try {
-    const ai = new GoogleGenAI({ apiKey: apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
@@ -110,11 +104,10 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
 };
 
 export const generateImageForWord = async (word: string): Promise<string | undefined> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) return undefined;
+  if (!process.env.API_KEY) return undefined;
 
   try {
-    const ai = new GoogleGenAI({ apiKey: apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -146,11 +139,10 @@ export const generateImageForWord = async (word: string): Promise<string | undef
 };
 
 export const evaluatePronunciation = async (word: string, base64Audio: string, mimeType: string): Promise<PronunciationResult> => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) throw new Error("API Key missing for evaluation");
+  if (!process.env.API_KEY) throw new Error("API Key missing for evaluation");
 
   try {
-    const ai = new GoogleGenAI({ apiKey: apiKey });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
