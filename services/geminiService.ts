@@ -86,19 +86,26 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
 
 export const generateImageForWord = async (word: string): Promise<string | undefined> => {
   try {
-    const response = await ai.models.generateImages({
-      model: 'imagen-4.0-generate-001',
-      prompt: `A clear, high-quality educational illustration representing the meaning of the English word "${word}". The image should be suitable for a vocabulary flashcard, photorealistic or detailed style, no text overlay.`,
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          {
+            text: `A clear, high-quality educational illustration representing the meaning of the English word "${word}". The image should be suitable for a vocabulary flashcard, photorealistic or detailed style, no text overlay.`,
+          },
+        ],
+      },
       config: {
-        numberOfImages: 1,
-        outputMimeType: 'image/jpeg',
-        aspectRatio: '4:3',
+        imageConfig: {
+          aspectRatio: '4:3',
+        }
       },
     });
 
-    const base64ImageBytes = response.generatedImages?.[0]?.image?.imageBytes;
-    if (base64ImageBytes) {
-      return `data:image/jpeg;base64,${base64ImageBytes}`;
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
     }
     return undefined;
   } catch (error) {
