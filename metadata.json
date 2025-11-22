@@ -1,6 +1,6 @@
 {
-  "name": "Copy of VocabMaster AI",
-  "description": "An advanced English vocabulary coach that transforms words into comprehensive study lessons with phonetics, context, and practice activities.",
+  "name": "VocabMaster",
+  "description": "An advanced English vocabulary tool that transforms words into comprehensive study lessons with phonetics, context, and practice activities.",
   "requestFramePermissions": [
     "microphone"
   ]

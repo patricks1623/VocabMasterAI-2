@@ -13,32 +13,32 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
 
   const steps = [
     {
-      title: "Welcome to VocabMaster AI",
-      description: "Your personal AI-powered English vocabulary coach. Let's take a quick tour to help you get the most out of your learning.",
+      title: "Welcome to VocabMaster",
+      description: "Your personal English vocabulary tool. Let's take a quick tour to help you get the most out of your learning.",
       icon: <GraduationCap size={48} className="text-brand-600" />,
       color: "bg-brand-50 dark:bg-brand-900/20"
     },
     {
-      title: "Smart Search & Context",
-      description: "Enter any word to get a full lesson. You can also add 'Context' (e.g., 'In a business meeting') to tell the AI exactly which meaning you want to learn.",
+      title: "Dictionary & Context",
+      description: "Enter any word to get a comprehensive definition. We fetch real-time data including phonetics, meaning, and parts of speech.",
       icon: <Search size={48} className="text-blue-600" />,
       color: "bg-blue-50 dark:bg-blue-900/20"
     },
     {
-      title: "Interactive Pronunciation",
-      description: "Click the Microphone icon on any word card to practice. Speak the word, and our AI will give you a score and specific tips to improve your accent.",
+      title: "Voice Mirror",
+      description: "Click the Microphone icon on any word card. Record yourself saying the word, then play it back to compare your pronunciation with the native audio.",
       icon: <Mic size={48} className="text-red-600" />,
       color: "bg-red-50 dark:bg-red-900/20"
     },
     {
-      title: "Comprehensive Lessons",
-      description: "Every search generates phonetics, images, example sentences, and grammar notes specifically tailored to help you master the word.",
+      title: "Visual Learning",
+      description: "Every search provides curated illustrations, example sentences, and related expressions to help you understand the word fully.",
       icon: <Sparkles size={48} className="text-amber-600" />,
       color: "bg-amber-50 dark:bg-amber-900/20"
     },
     {
       title: "Track Your Progress",
-      description: "We automatically save your lessons. Use the 'History' tab to review past words or clear your study session to start fresh.",
+      description: "We automatically save your searches. Use the 'History' tab to review past words or clear your study session to start fresh.",
       icon: <History size={48} className="text-purple-600" />,
       color: "bg-purple-50 dark:bg-purple-900/20"
     }

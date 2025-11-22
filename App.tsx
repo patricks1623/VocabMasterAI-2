@@ -120,8 +120,7 @@ function App() {
 
     } catch (err: any) {
       console.error("Operation failed:", err);
-      // Show the actual error message for debugging
-      setError(err.message || "An unexpected error occurred. Please check your API Key and try again.");
+      setError(err.message || "An unexpected error occurred.");
     } finally {
       setIsLoading(false);
     }
@@ -140,7 +139,7 @@ function App() {
               className="flex items-center gap-2 text-brand-600 hover:opacity-80 transition-opacity focus:outline-none"
             >
               <GraduationCap size={32} strokeWidth={1.5} />
-              <h1 className="text-xl font-serif font-bold text-slate-800 dark:text-slate-100 tracking-tight">VocabMaster<span className="text-brand-600">AI</span></h1>
+              <h1 className="text-xl font-serif font-bold text-slate-800 dark:text-slate-100 tracking-tight">VocabMaster</h1>
             </button>
           </div>
           
@@ -181,8 +180,7 @@ function App() {
                 Master English,<br /> One Word at a Time.
               </h2>
               <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
-                Enter a word below to receive a comprehensive lesson including phonetics, 
-                AI-generated illustrations, grammar notes, and practice activities.
+                Enter a word below to receive comprehensive definitions, phonetics, illustrations, and practice prompts.
               </p>
             </div>
 
@@ -202,17 +200,6 @@ function App() {
                   />
                 </div>
                 <div className="w-px bg-slate-100 dark:bg-slate-800 hidden md:block transition-colors"></div>
-                <div className="flex-1 flex flex-col justify-center px-4 py-2">
-                  <label htmlFor="context" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Context (Optional)</label>
-                  <input
-                    id="context"
-                    type="text"
-                    value={context}
-                    onChange={(e) => setContext(e.target.value)}
-                    placeholder="e.g. In a business meeting"
-                    className="w-full bg-transparent outline-none text-slate-600 dark:text-slate-300 text-sm placeholder:text-slate-300 dark:placeholder:text-slate-600"
-                  />
-                </div>
                 <button
                   type="submit"
                   disabled={isLoading || !word}
@@ -221,12 +208,12 @@ function App() {
                   {isLoading ? (
                     <>
                       <Loader2 size={20} className="animate-spin" />
-                      <span>Thinking...</span>
+                      <span>Searching...</span>
                     </>
                   ) : (
                     <>
                       <Sparkles size={18} />
-                      <span>Teach Me</span>
+                      <span>Search</span>
                     </>
                   )}
                 </button>
@@ -236,7 +223,7 @@ function App() {
             {/* Error State */}
             {error && (
               <div className="max-w-xl mx-auto mb-8 p-4 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-200 rounded-lg border border-red-100 dark:border-red-900 text-center">
-                <span className="font-bold block mb-1">Error:</span>
+                <span className="font-bold block mb-1">Not Found:</span>
                 {error}
               </div>
             )}
@@ -247,7 +234,7 @@ function App() {
                 <div className="flex items-center justify-between mb-6 px-2">
                   <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 uppercase tracking-wider text-xs font-bold">
                     <Clock size={14} />
-                    <span>Recent Studies</span>
+                    <span>Recent Searches</span>
                   </div>
                   <button 
                     onClick={handleGoToHistory}
@@ -275,7 +262,7 @@ function App() {
                         {item.meaning}
                       </p>
                       <div className="flex items-center text-brand-600 dark:text-brand-400 text-xs font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
-                        <span>Review Lesson</span>
+                        <span>View Details</span>
                         <ArrowRight size={12} className="ml-1" />
                       </div>
                     </button>
@@ -305,7 +292,7 @@ function App() {
            <div className="fixed inset-0 bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm z-50 flex items-center justify-center">
              <div className="flex flex-col items-center gap-4">
                <Loader2 size={48} className="animate-spin text-brand-600" />
-               <p className="font-serif text-xl text-slate-800 dark:text-slate-100 animate-pulse">Analyzing Language...</p>
+               <p className="font-serif text-xl text-slate-800 dark:text-slate-100 animate-pulse">Searching Dictionary...</p>
              </div>
            </div>
         )}
@@ -372,7 +359,7 @@ function App() {
                       {item.meaning}
                     </p>
                     <div className="flex items-center text-brand-600 dark:text-brand-400 text-xs font-bold uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity transform translate-y-2 group-hover:translate-y-0">
-                      <span>Review Lesson</span>
+                      <span>View Details</span>
                       <ArrowRight size={12} className="ml-1" />
                     </div>
                   </button>

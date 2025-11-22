@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { VocabularyResponse, PronunciationResult } from '../types';
-import { evaluatePronunciation } from '../services/geminiService';
-import { Volume2, ExternalLink, BookOpen, PenTool, MessageCircle, Info, Layers, Image as ImageIcon, Mic, Square, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { VocabularyResponse } from '../types';
+import { Volume2, ExternalLink, BookOpen, PenTool, MessageCircle, Info, Layers, Image as ImageIcon, Mic, Square, Play } from 'lucide-react';
 
 interface ResultCardProps {
   data: VocabularyResponse;
@@ -9,9 +8,7 @@ interface ResultCardProps {
 
 export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
   const [isRecording, setIsRecording] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [pronunciationResult, setPronunciationResult] = useState<PronunciationResult | null>(null);
-  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -34,19 +31,15 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
 
   const startRecording = async () => {
     try {
-      setRecordingError(null);
-      setPronunciationResult(null);
+      setAudioUrl(null);
       
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Check for supported mime types to ensure compatibility (fixes iOS/Safari issues)
       let options: MediaRecorderOptions = {};
       if (MediaRecorder.isTypeSupported('audio/webm')) {
         options = { mimeType: 'audio/webm' };
       } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
         options = { mimeType: 'audio/mp4' };
-      } else if (MediaRecorder.isTypeSupported('audio/ogg')) {
-        options = { mimeType: 'audio/ogg' };
       }
       
       mediaRecorderRef.current = new MediaRecorder(stream, options);
@@ -58,18 +51,12 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
         }
       };
 
-      mediaRecorderRef.current.onstop = async () => {
-        // Use the actual mime type determined by the MediaRecorder
+      mediaRecorderRef.current.onstop = () => {
         const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
         const blob = new Blob(chunksRef.current, { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        setAudioUrl(url);
         
-        if (blob.size > 0) {
-          await handleAnalysis(blob, mimeType);
-        } else {
-          setRecordingError("No audio detected. Please try again.");
-        }
-        
-        // Stop all tracks to release microphone
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -77,7 +64,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
       setIsRecording(true);
     } catch (err) {
       console.error("Error accessing microphone:", err);
-      setRecordingError("Could not access microphone. Please check permissions.");
+      alert("Could not access microphone.");
     }
   };
 
@@ -88,28 +75,11 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
     }
   };
 
-  const handleAnalysis = async (audioBlob: Blob, mimeType: string) => {
-    setIsAnalyzing(true);
-    try {
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      reader.onloadend = async () => {
-        const base64String = (reader.result as string).split(',')[1];
-        const result = await evaluatePronunciation(data.word, base64String, mimeType);
-        setPronunciationResult(result);
-        setIsAnalyzing(false);
-      };
-    } catch (err) {
-      console.error(err);
-      setRecordingError("Failed to analyze pronunciation.");
-      setIsAnalyzing(false);
+  const playRecording = () => {
+    if (audioUrl) {
+      const audio = new Audio(audioUrl);
+      audio.play();
     }
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-600 dark:text-emerald-400';
-    if (score >= 60) return 'text-amber-600 dark:text-amber-400';
-    return 'text-red-600 dark:text-red-400';
   };
 
   return (
@@ -130,20 +100,19 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                 <button 
                   onClick={playAudio}
                   className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                  title="Listen to pronunciation"
+                  title="Listen to standard pronunciation"
                 >
                   <Volume2 size={20} />
                 </button>
                 
                 <div className="w-px h-4 bg-white/30 mx-1"></div>
 
-                {/* Microphone Button */}
+                {/* Recording Controls */}
                 {!isRecording ? (
                    <button 
                     onClick={startRecording}
-                    disabled={isAnalyzing}
-                    className="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50"
-                    title="Practice Pronunciation"
+                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                    title="Record your voice (Voice Mirror)"
                   >
                     <Mic size={20} />
                   </button>
@@ -156,59 +125,23 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                     <Square size={20} fill="currentColor" />
                   </button>
                 )}
+
+                {audioUrl && !isRecording && (
+                  <button 
+                    onClick={playRecording}
+                    className="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full transition-colors ml-1"
+                    title="Play back your recording"
+                  >
+                    <Play size={20} fill="currentColor" />
+                  </button>
+                )}
               </div>
             </div>
           </div>
-          {isRecording && <p className="text-xs text-white/80 ml-1 animate-pulse">Listening... click stop when done.</p>}
+          {isRecording && <p className="text-xs text-white/80 ml-1 animate-pulse">Recording... Say the word.</p>}
+          {audioUrl && !isRecording && <p className="text-xs text-white/80 ml-1">Recording saved. Press Play to compare.</p>}
         </div>
       </div>
-
-      {/* Pronunciation Feedback Section (Conditionals) */}
-      {(isAnalyzing || pronunciationResult || recordingError) && (
-        <div className="bg-slate-50 dark:bg-slate-950 border-b border-slate-100 dark:border-slate-800 p-6 transition-all duration-300">
-           {recordingError && (
-             <div className="flex items-center gap-2 text-red-600 dark:text-red-400 text-sm">
-               <AlertCircle size={16} />
-               {recordingError}
-             </div>
-           )}
-
-           {isAnalyzing && (
-             <div className="flex flex-col items-center justify-center py-4 gap-3">
-                <Loader2 size={24} className="animate-spin text-brand-600" />
-                <span className="text-sm text-slate-500 dark:text-slate-400">AI is analyzing your pronunciation...</span>
-             </div>
-           )}
-
-           {pronunciationResult && !isAnalyzing && (
-             <div className="animate-slide-down">
-               <div className="flex items-center justify-between mb-4">
-                 <h3 className="font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                   <Mic size={18} className="text-brand-600" />
-                   Pronunciation Feedback
-                 </h3>
-                 <div className={`text-xl font-bold ${getScoreColor(pronunciationResult.score)}`}>
-                   {pronunciationResult.score}<span className="text-sm font-normal text-slate-400">/100</span>
-                 </div>
-               </div>
-               
-               <div className="grid gap-4 md:grid-cols-2">
-                 <div className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Coach's Feedback</h4>
-                   <p className="text-sm text-slate-700 dark:text-slate-300">{pronunciationResult.feedback}</p>
-                 </div>
-                 <div className="bg-white dark:bg-slate-900 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-                   <h4 className="text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400 mb-2">Quick Tip</h4>
-                   <p className="text-sm text-slate-700 dark:text-slate-300 flex gap-2">
-                     <CheckCircle2 size={16} className="text-brand-500 shrink-0 mt-0.5" />
-                     {pronunciationResult.improvementTip}
-                   </p>
-                 </div>
-               </div>
-             </div>
-           )}
-        </div>
-      )}
 
       <div className="p-8 space-y-8">
         
@@ -318,7 +251,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
               <section className="border-l-4 border-amber-300 dark:border-amber-700 pl-4 py-1">
                 <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 mb-2">
                   <Layers size={18} className="text-amber-600 dark:text-amber-500" />
-                  <h3 className="font-bold text-sm uppercase">Related Phrases</h3>
+                  <h3 className="font-bold text-sm uppercase">Synonyms</h3>
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                   {data.relatedExpressions}
@@ -331,25 +264,25 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
         {/* Practice Activity */}
         <section className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3 mb-6">
-            <h3 className="text-2xl font-serif font-bold text-slate-800 dark:text-slate-100">Practice & Retention</h3>
+            <h3 className="text-2xl font-serif font-bold text-slate-800 dark:text-slate-100">Study Prompts</h3>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">
             <div className="bg-indigo-50 dark:bg-indigo-950/30 p-6 rounded-xl border border-indigo-100 dark:border-indigo-900/50 transition-all hover:shadow-md">
               <div className="flex items-center gap-2 text-indigo-700 dark:text-indigo-400 mb-3">
                 <MessageCircle size={20} />
-                <h4 className="font-bold">Speaking Prompt</h4>
+                <h4 className="font-bold">Conversation</h4>
               </div>
               <p className="text-indigo-900 dark:text-indigo-200 font-medium italic text-lg">
                 "{data.practice.speakingPrompt}"
               </p>
-              <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-4 uppercase tracking-wide font-semibold">Try answering aloud now</p>
+              <p className="text-xs text-indigo-500 dark:text-indigo-400 mt-4 uppercase tracking-wide font-semibold">Try saying this aloud</p>
             </div>
 
             <div className="bg-emerald-50 dark:bg-emerald-950/30 p-6 rounded-xl border border-emerald-100 dark:border-emerald-900/50 transition-all hover:shadow-md">
               <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 mb-3">
                 <PenTool size={20} />
-                <h4 className="font-bold">Writing Task</h4>
+                <h4 className="font-bold">Journaling</h4>
               </div>
               <p className="text-emerald-900 dark:text-emerald-200 font-medium">
                 {data.practice.writingTask}
