@@ -2,12 +2,113 @@
 import { GenerateRequest, VocabularyResponse, PronunciationResult } from "../types";
 
 /**
- * Fetches vocabulary data from the Free Dictionary API.
- * Replaces AI generation with deterministic API data.
+ * Orchestrates the data fetching. 
+ * Tries to scrape Cambridge Dictionary first for exact definitions.
+ * Falls back to Free Dictionary API if scraping fails.
  */
 export const generateVocabularyLesson = async (request: GenerateRequest): Promise<VocabularyResponse> => {
   const { word } = request;
+  const lowerWord = word.trim().toLowerCase();
+
+  try {
+    const data = await fetchCambridgeData(lowerWord);
+    // Force the word to match the user's input (trimmed).
+    // The UI handles capitalization via CSS.
+    return { ...data, word: word.trim() };
+  } catch (error) {
+    console.warn("Cambridge scrape failed, falling back to Free Dictionary API", error);
+    const data = await fetchFreeDictionaryData(lowerWord);
+    // Force the word to match the user's input here as well.
+    return { ...data, word: word.trim() };
+  }
+};
+
+/**
+ * Scrapes data from Cambridge Dictionary using a CORS proxy.
+ */
+async function fetchCambridgeData(word: string): Promise<VocabularyResponse> {
+  const targetUrl = `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(word)}`;
   
+  // Switching to corsproxy.io as it handles Cambridge Dictionary's anti-bot pages better than allorigins
+  // Note: corsproxy.io returns the raw HTML string directly
+  const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`;
+  
+  const response = await fetch(proxyUrl);
+  if (!response.ok) {
+    throw new Error(`Proxy response error: ${response.status}`);
+  }
+  const htmlText = await response.text();
+
+  // Parse the HTML string into a DOM object
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(htmlText, 'text/html');
+
+  // Helper to extract text safely
+  const getText = (selector: string) => {
+    const el = doc.querySelector(selector);
+    return el ? el.textContent?.trim() || "" : "";
+  };
+
+  // 1. Validate if we landed on a valid page
+  // We use .dhw (Dictionary Head Word) which is specific to the entry title in Cambridge
+  const headword = getText('.dhw');
+  if (!headword) {
+    // Fallback check
+    const hw = getText('.hw');
+    if (!hw) throw new Error("Word not found in Cambridge Dictionary");
+  }
+
+  // 2. Extract Definitions
+  // We look for '.def.ddef_d' which is the specific class for the definition text in Cambridge
+  // If not found, fall back to generic '.def'
+  let meaning = getText('.def.ddef_d');
+  if (!meaning) {
+      meaning = getText('.def');
+  }
+  
+  // 3. Extract Part of Speech
+  // .pos contains 'verb', 'noun', etc.
+  const partOfSpeech = getText('.pos');
+
+  // 4. Extract Phonetics
+  // .ipa contains the pronunciation symbols
+  const phoneticsRaw = getText('.ipa');
+  const phonetics = phoneticsRaw ? `/${phoneticsRaw}/` : "";
+
+  // 5. Extract Examples
+  // .examp .eg contains example sentences
+  const exampleElements = doc.querySelectorAll('.examp .eg');
+  const examples: string[] = [];
+  exampleElements.forEach((el) => {
+    if (examples.length < 3 && el.textContent) {
+      examples.push(el.textContent.trim());
+    }
+  });
+
+  if (!meaning) {
+    throw new Error("Definition content missing");
+  }
+
+  // Generate static content for missing pieces
+  const grammarNote = generateStaticGrammarNote(partOfSpeech);
+  const practice = generateStaticPractice(word, partOfSpeech);
+
+  return {
+    word: headword || word, // This is just a fallback here, the parent function overwrites it
+    meaning: meaning,
+    phonetics: phonetics,
+    partOfSpeech: partOfSpeech || "unknown",
+    exampleSentences: examples,
+    grammarNote: grammarNote,
+    relatedExpressions: "", // Scraper simplification: skipping complex synonym extraction for now
+    practice: practice
+  };
+}
+
+/**
+ * Fallback: Fetches vocabulary data from the Free Dictionary API.
+ */
+async function fetchFreeDictionaryData(word: string): Promise<VocabularyResponse> {
   try {
     const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
     
@@ -53,15 +154,12 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
     console.error("Dictionary API Error:", error);
     throw new Error("Could not find definition. Please try a different word.");
   }
-};
+}
 
 /**
  * Replaces AI evaluation with a simple pass-through since we removed AI.
- * This function is kept for type compatibility but won't be used for AI scoring.
  */
 export const evaluatePronunciation = async (word: string, base64Audio: string, mimeType: string): Promise<PronunciationResult> => {
-  // We aren't using AI anymore, so we return a dummy result. 
-  // The UI will be updated to just play back audio instead of showing a score.
   return {
     score: 0,
     feedback: "",
@@ -72,6 +170,13 @@ export const evaluatePronunciation = async (word: string, base64Audio: string, m
 // Helpers for static content generation
 
 function generateStaticPractice(word: string, pos: string) {
+  // Normalize pos string to handle cases like "phrasal verb" or "noun [C]"
+  const cleanPos = pos.toLowerCase().includes('verb') ? 'verb' 
+                 : pos.toLowerCase().includes('noun') ? 'noun'
+                 : pos.toLowerCase().includes('adj') ? 'adjective'
+                 : pos.toLowerCase().includes('adv') ? 'adverb'
+                 : 'noun'; // Default
+
   const prompts = {
     noun: {
       speak: `Describe a specific "${word}" you have seen recently.`,
@@ -91,8 +196,7 @@ function generateStaticPractice(word: string, pos: string) {
     }
   };
 
-  const key = pos.toLowerCase() as keyof typeof prompts;
-  const selected = prompts[key] || prompts.noun;
+  const selected = prompts[cleanPos as keyof typeof prompts] || prompts.noun;
 
   return {
     speakingPrompt: selected.speak,
@@ -101,13 +205,13 @@ function generateStaticPractice(word: string, pos: string) {
 }
 
 function generateStaticGrammarNote(pos: string): string {
-  const notes: Record<string, string> = {
-    noun: "Nouns function as the subject or object of a sentence. Pay attention to whether this is countable or uncountable.",
-    verb: "Verbs demonstrate action or state of being. Check if this is regular or irregular in the past tense.",
-    adjective: "Adjectives modify nouns. They typically appear before the noun or after a linking verb.",
-    adverb: "Adverbs modify verbs, adjectives, or other adverbs. They often end in -ly but not always.",
-    preposition: "Prepositions show relationship between a noun and other parts of the sentence.",
-    conjunction: "Conjunctions connect clauses or sentences together."
-  };
-  return notes[pos.toLowerCase()] || "Pay attention to how this word fits into the sentence structure.";
+  const p = pos.toLowerCase();
+  if (p.includes('noun')) return "Nouns function as the subject or object of a sentence. Pay attention to whether this is countable or uncountable.";
+  if (p.includes('verb')) return "Verbs demonstrate action or state of being. Check if this is regular or irregular in the past tense.";
+  if (p.includes('adj')) return "Adjectives modify nouns. They typically appear before the noun or after a linking verb.";
+  if (p.includes('adv')) return "Adverbs modify verbs, adjectives, or other adverbs. They often end in -ly but not always.";
+  if (p.includes('prep')) return "Prepositions show relationship between a noun and other parts of the sentence.";
+  if (p.includes('conj')) return "Conjunctions connect clauses or sentences together.";
+  
+  return "Pay attention to how this word fits into the sentence structure.";
 }
