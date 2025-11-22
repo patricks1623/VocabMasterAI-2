@@ -1,5 +1,6 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
-import { generateVocabularyLesson, generateImageForWord } from './services/geminiService';
+import { generateVocabularyLesson } from './services/geminiService';
 import { VocabularyResponse } from './types';
 import { ResultCard } from './components/ResultCard';
 import { TutorialModal } from './components/TutorialModal';
@@ -102,20 +103,10 @@ function App() {
     setResult(null);
 
     try {
-      // Run both generation tasks in parallel
-      const [lessonData, generatedImageUrl] = await Promise.all([
-        generateVocabularyLesson({ word, context }),
-        generateImageForWord(word)
-      ]);
+      const lessonData = await generateVocabularyLesson({ word, context });
       
-      const completeResult = {
-        ...lessonData,
-        imageUrl: generatedImageUrl
-      };
-
-      // Combine the data
-      setResult(completeResult);
-      addToHistory(completeResult);
+      setResult(lessonData);
+      addToHistory(lessonData);
       setView('result');
 
     } catch (err: any) {
@@ -180,7 +171,7 @@ function App() {
                 Master English,<br /> One Word at a Time.
               </h2>
               <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
-                Enter a word below to receive comprehensive definitions, phonetics, illustrations, and practice prompts.
+                Enter a word below to receive comprehensive definitions, phonetics, and practice prompts.
               </p>
             </div>
 

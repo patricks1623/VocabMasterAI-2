@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { X, ArrowRight, ArrowLeft, GraduationCap, Search, Mic, History, Sparkles } from 'lucide-react';
+import { X, ArrowRight, ArrowLeft, GraduationCap, Search, History, Sparkles } from 'lucide-react';
 
 interface TutorialModalProps {
   isOpen: boolean;
@@ -23,18 +24,6 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose })
       description: "Enter any word to get a comprehensive definition. We fetch real-time data including phonetics, meaning, and parts of speech.",
       icon: <Search size={48} className="text-blue-600" />,
       color: "bg-blue-50 dark:bg-blue-900/20"
-    },
-    {
-      title: "Voice Mirror",
-      description: "Click the Microphone icon on any word card. Record yourself saying the word, then play it back to compare your pronunciation with the native audio.",
-      icon: <Mic size={48} className="text-red-600" />,
-      color: "bg-red-50 dark:bg-red-900/20"
-    },
-    {
-      title: "Visual Learning",
-      description: "Every search provides curated illustrations, example sentences, and related expressions to help you understand the word fully.",
-      icon: <Sparkles size={48} className="text-amber-600" />,
-      color: "bg-amber-50 dark:bg-amber-900/20"
     },
     {
       title: "Track Your Progress",

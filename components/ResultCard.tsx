@@ -1,18 +1,13 @@
-import React, { useState, useRef } from 'react';
+
+import React from 'react';
 import { VocabularyResponse } from '../types';
-import { Volume2, ExternalLink, BookOpen, PenTool, MessageCircle, Info, Layers, Image as ImageIcon, Mic, Square, Play } from 'lucide-react';
+import { Volume2, ExternalLink, BookOpen, PenTool, MessageCircle, Info, Layers, Image as ImageIcon } from 'lucide-react';
 
 interface ResultCardProps {
   data: VocabularyResponse;
 }
 
 export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-
   // Cambridge Dictionary URL
   const cambridgeUrl = `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(data.word.toLowerCase())}`;
   
@@ -27,59 +22,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
     const utterance = new SpeechSynthesisUtterance(data.word);
     utterance.lang = 'en-US';
     window.speechSynthesis.speak(utterance);
-  };
-
-  const startRecording = async () => {
-    try {
-      setAudioUrl(null);
-      
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      let options: MediaRecorderOptions = {};
-      if (MediaRecorder.isTypeSupported('audio/webm')) {
-        options = { mimeType: 'audio/webm' };
-      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        options = { mimeType: 'audio/mp4' };
-      }
-      
-      mediaRecorderRef.current = new MediaRecorder(stream, options);
-      chunksRef.current = [];
-
-      mediaRecorderRef.current.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
-
-      mediaRecorderRef.current.onstop = () => {
-        const mimeType = mediaRecorderRef.current?.mimeType || 'audio/webm';
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        setAudioUrl(url);
-        
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
-    } catch (err) {
-      console.error("Error accessing microphone:", err);
-      alert("Could not access microphone.");
-    }
-  };
-
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const playRecording = () => {
-    if (audioUrl) {
-      const audio = new Audio(audioUrl);
-      audio.play();
-    }
   };
 
   return (
@@ -104,70 +46,18 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                 >
                   <Volume2 size={20} />
                 </button>
-                
-                <div className="w-px h-4 bg-white/30 mx-1"></div>
-
-                {/* Recording Controls */}
-                {!isRecording ? (
-                   <button 
-                    onClick={startRecording}
-                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                    title="Record your voice (Voice Mirror)"
-                  >
-                    <Mic size={20} />
-                  </button>
-                ) : (
-                  <button 
-                    onClick={stopRecording}
-                    className="p-2 bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors animate-pulse"
-                    title="Stop Recording"
-                  >
-                    <Square size={20} fill="currentColor" />
-                  </button>
-                )}
-
-                {audioUrl && !isRecording && (
-                  <button 
-                    onClick={playRecording}
-                    className="p-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-full transition-colors ml-1"
-                    title="Play back your recording"
-                  >
-                    <Play size={20} fill="currentColor" />
-                  </button>
-                )}
               </div>
             </div>
           </div>
-          {isRecording && <p className="text-xs text-white/80 ml-1 animate-pulse">Recording... Say the word.</p>}
-          {audioUrl && !isRecording && <p className="text-xs text-white/80 ml-1">Recording saved. Press Play to compare.</p>}
         </div>
       </div>
 
       <div className="p-8 space-y-8">
         
         <div className="flex flex-col md:flex-row gap-8">
-          {/* Left Column: Image & Meaning */}
+          {/* Left Column: Meaning */}
           <div className="flex-1 space-y-6">
             
-             {/* Generated Image */}
-             {data.imageUrl ? (
-              <section className="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm">
-                 <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 px-4 py-2 text-xs font-bold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
-                  <ImageIcon size={14} />
-                  <span>Visualization</span>
-                </div>
-                <img 
-                  src={data.imageUrl} 
-                  alt={`Illustration of ${data.word}`}
-                  className="w-full h-64 object-cover hover:scale-105 transition-transform duration-700"
-                />
-              </section>
-            ) : (
-              <div className="h-48 bg-slate-50 dark:bg-slate-950 rounded-xl flex items-center justify-center text-slate-400 dark:text-slate-500 border border-slate-100 dark:border-slate-800 border-dashed">
-                <span className="text-sm">Image not available</span>
-              </div>
-            )}
-
             {/* Meaning */}
             <section>
               <div className="flex items-center gap-2 text-brand-700 dark:text-brand-400 mb-3">

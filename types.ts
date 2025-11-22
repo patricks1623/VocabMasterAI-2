@@ -7,7 +7,6 @@ export interface VocabularyResponse {
   exampleSentences: string[];
   grammarNote: string;
   relatedExpressions?: string;
-  imageUrl?: string;
   practice: {
     speakingPrompt: string;
     writingTask: string;

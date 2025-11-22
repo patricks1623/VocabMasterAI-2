@@ -1,3 +1,4 @@
+
 import { GenerateRequest, VocabularyResponse, PronunciationResult } from "../types";
 
 /**
@@ -45,7 +46,6 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
       exampleSentences: examples,
       grammarNote: generateStaticGrammarNote(partOfSpeech),
       relatedExpressions: entry.meanings[0].synonyms?.slice(0, 5).join(", "),
-      imageUrl: undefined, // Will be handled by generateImageForWord
       practice: practiceTasks
     };
 
@@ -53,14 +53,6 @@ export const generateVocabularyLesson = async (request: GenerateRequest): Promis
     console.error("Dictionary API Error:", error);
     throw new Error("Could not find definition. Please try a different word.");
   }
-};
-
-/**
- * returns a LoremFlickr URL instead of AI generation.
- */
-export const generateImageForWord = async (word: string): Promise<string | undefined> => {
-  // Return a high quality educational/random image based on the word tag
-  return `https://loremflickr.com/800/600/${encodeURIComponent(word)}?lock=${Math.floor(Math.random() * 100)}`;
 };
 
 /**
