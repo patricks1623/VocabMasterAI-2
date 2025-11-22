@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { VocabularyResponse } from '../types';
-import { Volume2, BookOpen, PenTool, MessageCircle, Info, Layers, Image as ImageIcon } from 'lucide-react';
+import { Volume2, BookOpen, PenTool, MessageCircle, Info, Layers, Image as ImageIcon, GitBranch } from 'lucide-react';
 
 interface ResultCardProps {
   data: VocabularyResponse;
@@ -89,6 +89,27 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                 </a>
               </div>
             </div>
+
+            {/* Grammar Forms - New Section */}
+            {data.forms && data.forms.length > 0 && (
+              <section className="bg-slate-50 dark:bg-slate-950 rounded-xl p-5 border border-slate-100 dark:border-slate-800">
+                 <div className="flex items-center gap-2 text-brand-700 dark:text-brand-400 mb-3">
+                  <GitBranch size={20} />
+                  <h3 className="font-semibold uppercase tracking-wider text-sm">Word Variations</h3>
+                </div>
+                <div className="space-y-3">
+                  {data.forms.map((form, idx) => (
+                    <div key={idx} className="border-b border-slate-100 dark:border-slate-800 last:border-0 pb-2 last:pb-0">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase">{form.label}</span>
+                        <span className="text-sm font-serif font-bold text-brand-600 dark:text-brand-400">{form.form}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{form.explanation}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           {/* Right Column: Examples & Grammar */}

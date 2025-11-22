@@ -1,4 +1,10 @@
 
+export interface WordForm {
+  label: string;
+  form: string;
+  explanation: string;
+}
+
 export interface VocabularyResponse {
   word: string;
   meaning: string;
@@ -11,6 +17,7 @@ export interface VocabularyResponse {
     speakingPrompt: string;
     writingTask: string;
   };
+  forms: WordForm[];
 }
 
 export interface GenerateRequest {

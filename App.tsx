@@ -4,7 +4,7 @@ import { generateVocabularyLesson } from './services/geminiService';
 import { VocabularyResponse } from './types';
 import { ResultCard } from './components/ResultCard';
 import { TutorialModal } from './components/TutorialModal';
-import { GraduationCap, Sparkles, Loader2, Clock, ArrowRight, History, Trash2, ChevronLeft, HelpCircle } from 'lucide-react';
+import { GraduationCap, Sparkles, Loader2, Clock, ArrowRight, History, Trash2, ChevronLeft, HelpCircle, Search, X } from 'lucide-react';
 
 type ViewState = 'home' | 'result' | 'history';
 
@@ -100,6 +100,9 @@ function App() {
 
     setIsLoading(true);
     setError(null);
+    
+    // If we are searching a new word, we might want to clear the current result temporarily
+    // or keep it until the new one loads. Let's clear it to show loading state clearly.
     setResult(null);
 
     try {
@@ -108,6 +111,7 @@ function App() {
       setResult(lessonData);
       addToHistory(lessonData);
       setView('result');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (err: any) {
       console.error("Operation failed:", err);
@@ -123,18 +127,45 @@ function App() {
       
       {/* Header / Hero */}
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-colors duration-300">
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4 shrink-0">
             <button 
               onClick={handleGoHome}
               className="flex items-center gap-2 text-brand-600 hover:opacity-80 transition-opacity focus:outline-none"
             >
               <GraduationCap size={32} strokeWidth={1.5} />
-              <h1 className="text-xl font-serif font-bold text-slate-800 dark:text-slate-100 tracking-tight">VocabMaster</h1>
+              <h1 className="hidden md:block text-xl font-serif font-bold text-slate-800 dark:text-slate-100 tracking-tight">VocabMaster</h1>
             </button>
           </div>
           
-          <div className="flex items-center gap-2">
+          {/* Navbar Search - Only visible when NOT on home */}
+          {view !== 'home' && (
+             <form onSubmit={handleSubmit} className="flex-1 max-w-md mx-2 animate-fade-in">
+               <div className="relative group">
+                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 group-focus-within:text-brand-500 transition-colors">
+                   <Search size={16} />
+                 </div>
+                 <input
+                   type="text"
+                   value={word}
+                   onChange={(e) => setWord(e.target.value)}
+                   placeholder="Search..."
+                   className="block w-full pl-10 pr-10 py-2 bg-slate-100 dark:bg-slate-800 border border-transparent focus:bg-white dark:focus:bg-slate-900 focus:border-brand-500 rounded-full text-sm text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900 transition-all"
+                 />
+                 {word && (
+                   <button
+                     type="button"
+                     onClick={() => setWord('')}
+                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                   >
+                     <X size={14} />
+                   </button>
+                 )}
+               </div>
+             </form>
+          )}
+
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleOpenTutorial}
               className="p-2 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
@@ -143,24 +174,24 @@ function App() {
               <HelpCircle size={20} />
             </button>
             
-            <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1"></div>
+            <div className="w-px h-6 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
 
             <button
               onClick={handleGoToHistory}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors text-sm font-medium ${
                 view === 'history' 
                   ? 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-400' 
                   : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
               }`}
             >
               <History size={18} />
-              <span className="hidden md:inline">History</span>
+              <span className="hidden sm:inline">History</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-12 w-full flex-grow">
+      <main className="max-w-5xl mx-auto px-4 py-8 md:py-12 w-full flex-grow">
         
         {/* SEARCH / HOME VIEW */}
         {view === 'home' && (
@@ -267,23 +298,17 @@ function App() {
         {/* RESULT VIEW */}
         {view === 'result' && result && (
           <div className="animate-slide-up">
-            <button 
-              onClick={handleGoHome}
-              className="mb-6 flex items-center gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors font-medium text-sm"
-            >
-              <ChevronLeft size={16} />
-              Back to Search
-            </button>
+            {/* Removed 'Back to Search' button as the search bar is now in header */}
             <ResultCard data={result} />
           </div>
         )}
 
-        {/* LOADING VIEW (If coming from search) */}
-        {view === 'home' && isLoading && (
-           <div className="fixed inset-0 bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm z-50 flex items-center justify-center">
-             <div className="flex flex-col items-center gap-4">
+        {/* LOADING OVERLAY */}
+        {isLoading && (
+           <div className="fixed inset-0 bg-white/50 dark:bg-slate-950/50 backdrop-blur-sm z-[60] flex items-center justify-center">
+             <div className="flex flex-col items-center gap-4 p-6 rounded-2xl">
                <Loader2 size={48} className="animate-spin text-brand-600" />
-               <p className="font-serif text-xl text-slate-800 dark:text-slate-100 animate-pulse">Searching Dictionary...</p>
+               <p className="font-serif text-xl text-slate-800 dark:text-slate-100 animate-pulse">Consulting Dictionary...</p>
              </div>
            </div>
         )}

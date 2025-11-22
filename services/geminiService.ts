@@ -1,5 +1,6 @@
 
 import { GenerateRequest, VocabularyResponse, PronunciationResult } from "../types";
+import { getWordForms } from "./grammarRules";
 
 /**
  * Orchestrates the data fetching. 
@@ -93,6 +94,7 @@ async function fetchCambridgeData(word: string): Promise<VocabularyResponse> {
   // Pass 'word' to generate varied content based on the specific word
   const grammarNote = generateStaticGrammarNote(word, partOfSpeech);
   const practice = generateStaticPractice(word, partOfSpeech);
+  const forms = getWordForms(word, partOfSpeech);
 
   return {
     word: headword || word, // This is just a fallback here, the parent function overwrites it
@@ -102,7 +104,8 @@ async function fetchCambridgeData(word: string): Promise<VocabularyResponse> {
     exampleSentences: examples,
     grammarNote: grammarNote,
     relatedExpressions: "", // Scraper simplification: skipping complex synonym extraction for now
-    practice: practice
+    practice: practice,
+    forms: forms
   };
 }
 
@@ -139,6 +142,7 @@ async function fetchFreeDictionaryData(word: string): Promise<VocabularyResponse
     // Generate static practice tasks based on Part of Speech
     const partOfSpeech = meaningEntry.partOfSpeech || "unknown";
     const practiceTasks = generateStaticPractice(word, partOfSpeech);
+    const forms = getWordForms(word, partOfSpeech);
 
     return {
       word: entry.word,
@@ -148,7 +152,8 @@ async function fetchFreeDictionaryData(word: string): Promise<VocabularyResponse
       exampleSentences: examples,
       grammarNote: generateStaticGrammarNote(word, partOfSpeech),
       relatedExpressions: entry.meanings[0].synonyms?.slice(0, 5).join(", "),
-      practice: practiceTasks
+      practice: practiceTasks,
+      forms: forms
     };
 
   } catch (error) {
@@ -171,7 +176,7 @@ export const evaluatePronunciation = async (word: string, base64Audio: string, m
 // Helpers for static content generation
 
 function generateStaticPractice(word: string, pos: string) {
-  // Normalize pos string to handle cases like "phrasal verb" or "noun [C]"
+  // Normalize pos string
   const p = pos.toLowerCase();
   const cleanPos = p.includes('verb') && !p.includes('adverb') ? 'verb' 
                  : p.includes('noun') ? 'noun'
@@ -180,80 +185,102 @@ function generateStaticPractice(word: string, pos: string) {
                  : 'general';
 
   // Deterministic selection based on word characters
-  // This ensures "apple" always gets the same prompt, but "banana" gets a different one from the list.
   const hash = word.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
 
+  // Improved templates focused on Scenarios, Role-play, and Critical Thinking
   const templates = {
     noun: {
       speak: [
-        `Describe a specific "${word}" you have seen recently in great detail.`,
-        `If you had to explain what a "${word}" is to a 5-year-old, what would you say?`,
-        `Talk about the pros and cons of a typical "${word}".`,
-        `Describe your ideal version of a "${word}".`,
-        `Tell a story involving a lost "${word}".`
+        `Role-play: You are a salesperson trying to sell a "${word}". What are its best features?`,
+        `Debate: Argue why the world needs more (or less) of "${word}".`,
+        `Imagine you are explaining what a "${word}" is to an alien who has never visited Earth.`,
+        `Tell a short story about a time you lost or found a "${word}".`,
+        `If you could give a "${word}" to any famous person, who would it be and why?`,
+        `Describe the perfect environment for a "${word}". What does it look like?`,
+        `Compare a "${word}" to an elephant. How are they different?`,
+        `If "${word}" was the main topic of a movie, what kind of movie would it be?`
       ],
       write: [
-        `Write a sentence using "${word}" as the subject of a rhetorical question.`,
-        `Write a short product description for a new type of "${word}".`,
-        `Compose a tweet (280 characters) about a "${word}".`,
-        `Write a dialogue between two people arguing about a "${word}".`,
-        `List 5 adjectives that commonly describe a "${word}".`
+        `Write a 3-line poem where the last word is "${word}".`,
+        `Create a shopping list or a 'to-do' list that involves a "${word}".`,
+        `Write a warning label for a "${word}". What should people be careful about?`,
+        `If "${word}" was a company name, what would their slogan be?`,
+        `Write a short text message to a friend explaining why you need a "${word}" right now.`,
+        `Describe a "${word}" using 3 adjectives and 3 verbs.`,
+        `Write a definition of "${word}" for a dictionary written by 5-year-olds.`
       ]
     },
     verb: {
       speak: [
-        `Talk about the last time you had to "${word}".`,
-        `Explain specifically how to "${word}" safely and effectively.`,
-        `Describe a situation where it would be a bad idea to "${word}".`,
-        `Who is the best person you know to "${word}"? Why?`,
-        `Predict what would happen if everyone started to "${word}" tomorrow.`
+        `Confession time: Have you ever forgotten to "${word}"? What happened?`,
+        `Instruction: Teach me how to "${word}" perfectly in 3 steps.`,
+        `Prediction: Do you think people will still "${word}" in 100 years? Why?`,
+        `Interview: If you could hire someone just to "${word}" for you, would you?`,
+        `Scenario: You are late for a meeting because you had to "${word}". Explain this to your boss.`,
+        `Challenge: Try to convince me that it is dangerous to "${word}".`,
+        `If animals could "${word}", which animal would be the best at it?`,
+        `What is the most boring place to "${word}"? Explain why.`
       ],
       write: [
-        `Write a set of 3 instructions on how to "${word}".`,
-        `Write a diary entry about a day you spent trying to "${word}".`,
-        `Write a formal email asking for permission to "${word}".`,
-        `Write a sentence using "${word}" in the past continuous tense (was/were ...ing).`,
-        `Create a warning sign regarding the action to "${word}".`
+        `Write a diary entry about a day where you did nothing but "${word}".`,
+        `Write a set of rules for a library regarding how to "${word}".`,
+        `Create a fortune cookie message that includes the word "${word}".`,
+        `Write a sentence using "${word}" in the past, present, and future tense.`,
+        `Write a text message canceling plans because you need to "${word}".`,
+        `List 3 adverbs (e.g., quickly, sadly) that change the feeling of "${word}".`,
+        `Write a headline for a newspaper about a man who loves to "${word}".`
       ]
     },
     adjective: {
       speak: [
-        `Describe a person, place, or thing that is extremely "${word}".`,
-        `Talk about a time when you felt very "${word}".`,
-        `Compare something that is "${word}" with something that is the opposite.`,
-        `Explain why being "${word}" can be an advantage in some situations.`,
-        `Describe a movie character who is famously "${word}".`
+        `Opinion: Is it better to be rich or to be "${word}"? Defend your answer.`,
+        `Story: Describe a character in a movie who is extremely "${word}".`,
+        `Scenario: You are designing a house that must be very "${word}". Describe one room.`,
+        `Comparison: What is something that is "${word}" and something that is definitely NOT?`,
+        `If you were a food, would you be "${word}"? Why?`,
+        `Describe your perfect vacation using the word "${word}" twice.`,
+        `Do you think being "${word}" helps people succeed in life?`,
+        `If a car was described as "${word}", would you buy it?`
       ],
       write: [
-        `Write a review for a product that is surprisingly "${word}".`,
-        `Write a haiku or short poem about the feeling of being "${word}".`,
-        `Write a sentence using "${word}" and a superlative (most/least).`,
-        `Describe a room using only synonyms for "${word}".`,
-        `Write a letter to a friend explaining why you are feeling "${word}".`
+        `Write a review for a restaurant that was very "${word}". give it 1 star.`,
+        `Write a dating profile bio for someone who describes themselves as "${word}".`,
+        `List 5 things in your room that are (or are not) "${word}".`,
+        `Complete the sentence: "The problem with being ${word} is that..."`,
+        `Write a short email to a hotel complaining that the room was not "${word}" enough.`,
+        `Create a new superhero name based on the word "${word}".`,
+        `Write a tweet (short sentence) using hashtags #life and #${word}.`
       ]
     },
     adverb: {
       speak: [
-        `Describe an action that is typically done "${word}".`,
-        `Tell a story about someone who behaved "${word}".`,
-        `Explain the difference between doing something normally vs doing it "${word}".`
+        `Demonstration: Act out or describe doing a common task (like brushing teeth) "${word}".`,
+        `Advice: When is the best time to speak "${word}"?`,
+        `Scenario: A police officer stops you. Why is it important to answer "${word}"?`,
+        `Contrast: What is the difference between doing something "${word}" vs doing it quickly?`,
+        `Who in your family behaves "${word}" the most? Give an example.`
       ],
       write: [
-        `Write a sentence modifying a verb with "${word}".`,
-        `Describe a scene where the weather changes "${word}".`,
-        `Write 3 different commands instructing someone to act "${word}".`
+        `Write a guide on "How to Drive "${word}".`,
+        `Write a mysterious note left on a desk that uses the word "${word}".`,
+        `List 3 verbs that change meaning when you add "${word}" (e.g. run "${word}").`,
+        `Write a sentence describing a storm moving "${word}".`,
+        `Complete this thought: "I wish I could sing ${word} because..."`
       ]
     },
     general: {
       speak: [
-        `Use the word "${word}" in three distinct sentences aloud.`,
-        `Explain the connection between "${word}" and your daily routine.`,
-        `Talk about the first thing that comes to mind when you hear "${word}".`
+        `Philosophy: What does the word "${word}" mean to you personally?`,
+        `Memory: Does the word "${word}" remind you of any specific memory?`,
+        `Association: Say the first 3 words that come to your mind when you hear "${word}".`,
+        `Creative: If "${word}" was a flavor of ice cream, what would it taste like?`,
+        `Use "${word}" in a question you would ask the President.`
       ],
       write: [
-         `Write a paragraph containing the word "${word}" three times.`,
-         `Create a mind map of 5 words related to "${word}".`,
-         `Write a definition of "${word}" in your own words without using the word itself.`
+         `Write a haiku (5-7-5 syllables) about "${word}".`,
+         `Write the word "${word}" in the middle of the page and draw a circle around it with related words.`,
+         `Write a sentence that uses "${word}" and its opposite.`,
+         `Write a cryptic message in a bottle using "${word}".`
       ]
     }
   };
