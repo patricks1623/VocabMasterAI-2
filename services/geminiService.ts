@@ -90,7 +90,8 @@ async function fetchCambridgeData(word: string): Promise<VocabularyResponse> {
   }
 
   // Generate static content for missing pieces
-  const grammarNote = generateStaticGrammarNote(partOfSpeech);
+  // Pass 'word' to generate varied content based on the specific word
+  const grammarNote = generateStaticGrammarNote(word, partOfSpeech);
   const practice = generateStaticPractice(word, partOfSpeech);
 
   return {
@@ -145,7 +146,7 @@ async function fetchFreeDictionaryData(word: string): Promise<VocabularyResponse
       phonetics: entry.phonetic || (entry.phonetics.find((p: any) => p.text)?.text) || "",
       partOfSpeech: partOfSpeech,
       exampleSentences: examples,
-      grammarNote: generateStaticGrammarNote(partOfSpeech),
+      grammarNote: generateStaticGrammarNote(word, partOfSpeech),
       relatedExpressions: entry.meanings[0].synonyms?.slice(0, 5).join(", "),
       practice: practiceTasks
     };
@@ -171,47 +172,152 @@ export const evaluatePronunciation = async (word: string, base64Audio: string, m
 
 function generateStaticPractice(word: string, pos: string) {
   // Normalize pos string to handle cases like "phrasal verb" or "noun [C]"
-  const cleanPos = pos.toLowerCase().includes('verb') ? 'verb' 
-                 : pos.toLowerCase().includes('noun') ? 'noun'
-                 : pos.toLowerCase().includes('adj') ? 'adjective'
-                 : pos.toLowerCase().includes('adv') ? 'adverb'
-                 : 'noun'; // Default
+  const p = pos.toLowerCase();
+  const cleanPos = p.includes('verb') && !p.includes('adverb') ? 'verb' 
+                 : p.includes('noun') ? 'noun'
+                 : p.includes('adj') ? 'adjective'
+                 : p.includes('adv') ? 'adverb'
+                 : 'general';
 
-  const prompts = {
+  // Deterministic selection based on word characters
+  // This ensures "apple" always gets the same prompt, but "banana" gets a different one from the list.
+  const hash = word.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+  const templates = {
     noun: {
-      speak: `Describe a specific "${word}" you have seen recently.`,
-      write: `Write a sentence using "${word}" as the subject.`
+      speak: [
+        `Describe a specific "${word}" you have seen recently in great detail.`,
+        `If you had to explain what a "${word}" is to a 5-year-old, what would you say?`,
+        `Talk about the pros and cons of a typical "${word}".`,
+        `Describe your ideal version of a "${word}".`,
+        `Tell a story involving a lost "${word}".`
+      ],
+      write: [
+        `Write a sentence using "${word}" as the subject of a rhetorical question.`,
+        `Write a short product description for a new type of "${word}".`,
+        `Compose a tweet (280 characters) about a "${word}".`,
+        `Write a dialogue between two people arguing about a "${word}".`,
+        `List 5 adjectives that commonly describe a "${word}".`
+      ]
     },
     verb: {
-      speak: `Talk about a time you had to ${word}.`,
-      write: `Write a sentence using "${word}" in the past tense.`
+      speak: [
+        `Talk about the last time you had to "${word}".`,
+        `Explain specifically how to "${word}" safely and effectively.`,
+        `Describe a situation where it would be a bad idea to "${word}".`,
+        `Who is the best person you know to "${word}"? Why?`,
+        `Predict what would happen if everyone started to "${word}" tomorrow.`
+      ],
+      write: [
+        `Write a set of 3 instructions on how to "${word}".`,
+        `Write a diary entry about a day you spent trying to "${word}".`,
+        `Write a formal email asking for permission to "${word}".`,
+        `Write a sentence using "${word}" in the past continuous tense (was/were ...ing).`,
+        `Create a warning sign regarding the action to "${word}".`
+      ]
     },
     adjective: {
-      speak: `Describe something using the word "${word}".`,
-      write: `Write a comparative sentence using "${word}".`
+      speak: [
+        `Describe a person, place, or thing that is extremely "${word}".`,
+        `Talk about a time when you felt very "${word}".`,
+        `Compare something that is "${word}" with something that is the opposite.`,
+        `Explain why being "${word}" can be an advantage in some situations.`,
+        `Describe a movie character who is famously "${word}".`
+      ],
+      write: [
+        `Write a review for a product that is surprisingly "${word}".`,
+        `Write a haiku or short poem about the feeling of being "${word}".`,
+        `Write a sentence using "${word}" and a superlative (most/least).`,
+        `Describe a room using only synonyms for "${word}".`,
+        `Write a letter to a friend explaining why you are feeling "${word}".`
+      ]
     },
     adverb: {
-      speak: `Describe an action that was done ${word}.`,
-      write: `Use "${word}" to modify a verb in a sentence.`
+      speak: [
+        `Describe an action that is typically done "${word}".`,
+        `Tell a story about someone who behaved "${word}".`,
+        `Explain the difference between doing something normally vs doing it "${word}".`
+      ],
+      write: [
+        `Write a sentence modifying a verb with "${word}".`,
+        `Describe a scene where the weather changes "${word}".`,
+        `Write 3 different commands instructing someone to act "${word}".`
+      ]
+    },
+    general: {
+      speak: [
+        `Use the word "${word}" in three distinct sentences aloud.`,
+        `Explain the connection between "${word}" and your daily routine.`,
+        `Talk about the first thing that comes to mind when you hear "${word}".`
+      ],
+      write: [
+         `Write a paragraph containing the word "${word}" three times.`,
+         `Create a mind map of 5 words related to "${word}".`,
+         `Write a definition of "${word}" in your own words without using the word itself.`
+      ]
     }
   };
 
-  const selected = prompts[cleanPos as keyof typeof prompts] || prompts.noun;
+  const category = templates[cleanPos as keyof typeof templates] || templates.general;
+  
+  const speakIndex = hash % category.speak.length;
+  const writeIndex = hash % category.write.length;
 
   return {
-    speakingPrompt: selected.speak,
-    writingTask: selected.write
+    speakingPrompt: category.speak[speakIndex],
+    writingTask: category.write[writeIndex]
   };
 }
 
-function generateStaticGrammarNote(pos: string): string {
+function generateStaticGrammarNote(word: string, pos: string): string {
   const p = pos.toLowerCase();
-  if (p.includes('noun')) return "Nouns function as the subject or object of a sentence. Pay attention to whether this is countable or uncountable.";
-  if (p.includes('verb')) return "Verbs demonstrate action or state of being. Check if this is regular or irregular in the past tense.";
-  if (p.includes('adj')) return "Adjectives modify nouns. They typically appear before the noun or after a linking verb.";
-  if (p.includes('adv')) return "Adverbs modify verbs, adjectives, or other adverbs. They often end in -ly but not always.";
-  if (p.includes('prep')) return "Prepositions show relationship between a noun and other parts of the sentence.";
-  if (p.includes('conj')) return "Conjunctions connect clauses or sentences together.";
+  const cleanPos = p.includes('verb') && !p.includes('adverb') ? 'verb' 
+                 : p.includes('noun') ? 'noun'
+                 : p.includes('adj') ? 'adjective'
+                 : p.includes('adv') ? 'adverb'
+                 : 'general';
+
+  // Same deterministic logic as practice prompts
+  const hash = word.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+  const notes = {
+    noun: [
+      `Determine if "${word}" is countable or uncountable. Uncountable nouns usually don't take 'a' or 'an' and lack a plural form.`,
+      `Consider common collocations with "${word}". Specific verbs often pair with it, like "make" vs "do".`,
+      `Check if "${word}" is acting as the subject (doer) or object (receiver) in your current sentence structure.`,
+      `If "${word}" is a concrete noun, try using specific adjectives to describe its texture, size, or color.`,
+      `Pay attention to article usage with "${word}". Does it need 'the' for a specific reference, or is it being used generally?`
+    ],
+    verb: [
+      `Determine if "${word}" is transitive (needs an object) or intransitive (stands alone) in your sentence.`,
+      `Check the past tense form of "${word}". Is it regular (ending in -ed) or does it have an irregular spelling?`,
+      `Consider whether "${word}" is typically followed by a gerund (doing) or an infinitive (to do).`,
+      `Think about the voice: can "${word}" be used naturally in the passive voice?`,
+      `Look out for phrasal verbs involving "${word}". Adding prepositions like 'up' or 'out' might change its meaning.`
+    ],
+    adjective: [
+      `When using "${word}" with other adjectives, remember the standard order: Opinion → Size → Age → Shape → Color → Origin → Material.`,
+      `Check the comparative and superlative forms of "${word}". Do you add -er/-est, or do you use 'more'/'most'?`,
+      `Remember that "${word}" typically appears before the noun (attributive) or after linking verbs like 'be' (predicative).`,
+      `Ensure you are correctly distinguishing between "${word}" and related forms (e.g., -ed vs -ing endings).`,
+      `Use "${word}" to add specificity, but avoid using 'very' + "${word}" if a stronger synonym exists.`
+    ],
+    adverb: [
+      `Adverbs like "${word}" usually go before the main verb, but after 'to be'.`,
+      `Remember that "${word}" modifies a verb, adjective, or another adverb, often answering 'how', 'when', or 'to what extent'.`,
+      `While "${word}" likely functions as an adverb, verify if it has an irregular form compared to its adjective counterpart.`,
+      `Placement matters: ensure "${word}" is placed correctly (often after the object) to convey the intended meaning.`
+    ],
+    general: [
+      `Pay close attention to the specific context in which "${word}" is used to understand its nuance.`,
+      `Check if "${word}" has multiple meanings depending on the sentence structure or part of speech.`,
+      `Consider the register of "${word}": is it appropriate for formal writing or better suited for casual conversation?`,
+      `Practice using "${word}" in a question, a negative sentence, and a positive statement to master its usage.`
+    ]
+  };
+
+  const category = notes[cleanPos as keyof typeof notes] || notes.general;
+  const index = hash % category.length;
   
-  return "Pay attention to how this word fits into the sentence structure.";
+  return category[index];
 }

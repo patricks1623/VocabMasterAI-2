@@ -1,16 +1,13 @@
 
 import React from 'react';
 import { VocabularyResponse } from '../types';
-import { Volume2, ExternalLink, BookOpen, PenTool, MessageCircle, Info, Layers, Image as ImageIcon } from 'lucide-react';
+import { Volume2, BookOpen, PenTool, MessageCircle, Info, Layers, Image as ImageIcon } from 'lucide-react';
 
 interface ResultCardProps {
   data: VocabularyResponse;
 }
 
 export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
-  // Cambridge Dictionary URL
-  const cambridgeUrl = `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(data.word.toLowerCase())}`;
-  
   // YouGlish URL for pronunciation
   const youglishUrl = `https://youglish.com/pronounce/${encodeURIComponent(data.word)}/english?`;
   
@@ -71,15 +68,6 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
 
              {/* External Links */}
             <div className="flex flex-col gap-3">
-              <a 
-                href={cambridgeUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg transition-colors text-sm font-medium w-full border border-indigo-100 dark:border-indigo-800"
-              >
-                <ExternalLink size={16} />
-                View on Cambridge Dictionary
-              </a>
               <div className="flex gap-2">
                 <a 
                     href={youglishUrl} 
