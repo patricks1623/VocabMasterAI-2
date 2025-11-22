@@ -1,128 +1,197 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, ArrowRight, CheckCircle } from 'lucide-react';
 
-import React, { useState } from 'react';
-import { X, ArrowRight, ArrowLeft, GraduationCap, Search, History, Sparkles } from 'lucide-react';
+interface Step {
+  targetId: string;
+  title: string;
+  description: string;
+  position: 'top' | 'bottom' | 'left' | 'right';
+  actionRequired?: boolean; // If true, user must interact with element to proceed
+}
 
-interface TutorialModalProps {
+interface TourGuideProps {
   isOpen: boolean;
+  currentStepIndex: number;
+  onNext: () => void;
   onClose: () => void;
 }
 
-export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose }) => {
-  const [step, setStep] = useState(0);
+export const TOUR_STEPS: Step[] = [
+  {
+    targetId: 'tour-search-input',
+    title: 'Start Here',
+    description: 'Type a word you want to master (e.g., "Resilient") and press Enter or click Search.',
+    position: 'bottom',
+    actionRequired: true
+  },
+  {
+    targetId: 'tour-audio-btn',
+    title: 'Listen & Repeat',
+    description: 'Don\'t just read! Click here to hear the standard pronunciation.',
+    position: 'right',
+    actionRequired: false
+  },
+  {
+    targetId: 'tour-youglish-btn',
+    title: 'Real Context',
+    description: 'Click YouGlish to hear how native speakers use this word in real videos.',
+    position: 'top',
+    actionRequired: false
+  },
+  {
+    targetId: 'tour-images-btn',
+    title: 'Visual Memory',
+    description: 'Connect the word to an image. Click here to see visual references.',
+    position: 'top',
+    actionRequired: false
+  },
+  {
+    targetId: 'tour-study-prompts',
+    title: 'Active Practice',
+    description: 'The most important part: Use these prompts to practice speaking and writing immediately.',
+    position: 'top',
+    actionRequired: false
+  }
+];
 
-  if (!isOpen) return null;
+export const TutorialModal: React.FC<TourGuideProps> = ({ isOpen, currentStepIndex, onNext, onClose }) => {
+  const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
 
-  const steps = [
-    {
-      title: "Welcome to VocabMaster",
-      description: "Your personal English vocabulary tool. Let's take a quick tour to help you get the most out of your learning.",
-      icon: <GraduationCap size={48} className="text-brand-600" />,
-      color: "bg-brand-50 dark:bg-brand-900/20"
-    },
-    {
-      title: "Dictionary & Context",
-      description: "Enter any word to get a comprehensive definition. We fetch real-time data including phonetics, meaning, and parts of speech.",
-      icon: <Search size={48} className="text-blue-600" />,
-      color: "bg-blue-50 dark:bg-blue-900/20"
-    },
-    {
-      title: "Track Your Progress",
-      description: "We automatically save your searches. Use the 'History' tab to review past words or clear your study session to start fresh.",
-      icon: <History size={48} className="text-purple-600" />,
-      color: "bg-purple-50 dark:bg-purple-900/20"
-    }
-  ];
+  const step = TOUR_STEPS[currentStepIndex];
 
-  const handleNext = () => {
-    if (step < steps.length - 1) {
-      setStep(step + 1);
+  const updatePosition = useCallback(() => {
+    if (!step) return;
+    
+    const element = document.getElementById(step.targetId);
+    if (element) {
+      // Scroll element into view with some padding
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      
+      // Get coordinates
+      const rect = element.getBoundingClientRect();
+      setTargetRect(rect);
+      setIsVisible(true);
     } else {
-      onClose();
+      // If element not found yet (e.g. during loading transitions), hide tooltip momentarily
+      setIsVisible(false);
     }
+  }, [step]);
+
+  useEffect(() => {
+    if (isOpen) {
+      // Small delay to allow DOM updates/animations to finish before calculating position
+      const timer = setTimeout(updatePosition, 500);
+      window.addEventListener('resize', updatePosition);
+      window.addEventListener('scroll', updatePosition);
+      
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', updatePosition);
+        window.removeEventListener('scroll', updatePosition);
+      };
+    }
+  }, [isOpen, currentStepIndex, updatePosition]);
+
+  if (!isOpen || !step || !targetRect || !isVisible) return null;
+
+  // Calculate Tooltip Position
+  const tooltipStyle: React.CSSProperties = {
+    position: 'fixed',
+    zIndex: 60,
+    width: '320px',
   };
 
-  const handlePrev = () => {
-    if (step > 0) {
-      setStep(step - 1);
-    }
-  };
+  const gap = 16; // Gap between element and tooltip
 
-  const currentStep = steps[step];
+  if (step.position === 'bottom') {
+    tooltipStyle.top = targetRect.bottom + gap;
+    tooltipStyle.left = targetRect.left + (targetRect.width / 2) - 160;
+  } else if (step.position === 'top') {
+    tooltipStyle.bottom = (window.innerHeight - targetRect.top) + gap;
+    tooltipStyle.left = targetRect.left + (targetRect.width / 2) - 160;
+  } else if (step.position === 'right') {
+    tooltipStyle.top = targetRect.top + (targetRect.height / 2) - 60; // Vertically centered approx
+    tooltipStyle.left = targetRect.right + gap;
+  } else if (step.position === 'left') {
+    tooltipStyle.top = targetRect.top;
+    tooltipStyle.right = (window.innerWidth - targetRect.left) + gap;
+  }
+
+  // Ensure tooltip stays on screen horizontally
+  if (tooltipStyle.left && typeof tooltipStyle.left === 'number') {
+    if (tooltipStyle.left < 10) tooltipStyle.left = 10;
+    if (tooltipStyle.left + 320 > window.innerWidth) tooltipStyle.left = window.innerWidth - 330;
+  }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col relative animate-scale-up">
+    <>
+      {/* Backdrop Overlay (Darken the rest of the screen) */}
+      <div className="fixed inset-0 z-50 bg-slate-900/60 transition-opacity duration-300" />
+
+      {/* Spotlight Ring/Highlight */}
+      <div 
+        className="fixed z-50 rounded-lg ring-4 ring-brand-400 ring-opacity-70 animate-pulse pointer-events-none transition-all duration-300"
+        style={{
+          top: targetRect.top - 4,
+          left: targetRect.left - 4,
+          width: targetRect.width + 8,
+          height: targetRect.height + 8,
+        }}
+      />
+
+      {/* The Tooltip Card */}
+      <div 
+        className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl p-5 border border-slate-200 dark:border-slate-700 animate-scale-up"
+        style={tooltipStyle}
+      >
+        <div className="flex justify-between items-start mb-3">
+          <h3 className="font-serif font-bold text-lg text-slate-900 dark:text-slate-100">
+            {step.title}
+          </h3>
+          <button 
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+          >
+            <X size={16} />
+          </button>
+        </div>
         
-        {/* Close Button */}
-        <button 
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors z-10"
-        >
-          <X size={20} />
-        </button>
+        <p className="text-slate-600 dark:text-slate-300 text-sm mb-5 leading-relaxed">
+          {step.description}
+        </p>
 
-        {/* Visual Header */}
-        <div className={`h-48 ${currentStep.color} flex items-center justify-center transition-colors duration-500 ease-in-out`}>
-          <div className="bg-white dark:bg-slate-800 p-6 rounded-full shadow-lg animate-bounce-slight">
-            {currentStep.icon}
-          </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
+            Step {currentStepIndex + 1} of {TOUR_STEPS.length}
+          </span>
+          
+          {!step.actionRequired && (
+            <button 
+              onClick={onNext}
+              className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-bold transition-colors shadow-md"
+            >
+              {currentStepIndex === TOUR_STEPS.length - 1 ? 'Finish' : 'Next'}
+              {currentStepIndex === TOUR_STEPS.length - 1 ? <CheckCircle size={14} /> : <ArrowRight size={14} />}
+            </button>
+          )}
+          {step.actionRequired && (
+             <span className="text-xs text-brand-600 dark:text-brand-400 font-bold animate-pulse">
+               Interact to continue...
+             </span>
+          )}
         </div>
 
-        {/* Content */}
-        <div className="p-8 text-center flex-grow flex flex-col justify-between h-64">
-          <div>
-            <h3 className="text-2xl font-serif font-bold text-slate-900 dark:text-slate-100 mb-4 transition-all duration-300">
-              {currentStep.title}
-            </h3>
-            <p className="text-slate-600 dark:text-slate-400 text-lg leading-relaxed">
-              {currentStep.description}
-            </p>
-          </div>
-
-          {/* Indicators */}
-          <div className="flex justify-center gap-2 mt-6">
-            {steps.map((_, index) => (
-              <div 
-                key={index}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  index === step 
-                    ? 'w-8 bg-brand-600' 
-                    : 'w-2 bg-slate-200 dark:bg-slate-700'
-                }`}
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Footer / Navigation */}
-        <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 flex justify-between items-center">
-          <button 
-            onClick={handlePrev}
-            disabled={step === 0}
-            className={`flex items-center gap-2 px-4 py-2 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors font-medium ${step === 0 ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          >
-            <ArrowLeft size={18} />
-            Back
-          </button>
-
-          <button 
-            onClick={handleNext}
-            className="flex items-center gap-2 px-6 py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all transform hover:-translate-y-0.5"
-          >
-            {step === steps.length - 1 ? (
-              <>
-                Get Started
-                <Sparkles size={18} />
-              </>
-            ) : (
-              <>
-                Next
-                <ArrowRight size={18} />
-              </>
-            )}
-          </button>
-        </div>
+        {/* Little arrow pointing to element */}
+        <div 
+          className={`absolute w-4 h-4 bg-white dark:bg-slate-800 transform rotate-45 border-slate-200 dark:border-slate-700 ${
+            step.position === 'bottom' ? '-top-2 border-t border-l left-1/2 -ml-2' :
+            step.position === 'top' ? '-bottom-2 border-b border-r left-1/2 -ml-2' :
+            step.position === 'right' ? '-left-2 border-b border-l top-1/2 -mt-2' :
+            ''
+          }`}
+        />
       </div>
-    </div>
+    </>
   );
 };

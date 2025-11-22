@@ -1,9 +1,8 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { generateVocabularyLesson } from './services/geminiService';
 import { VocabularyResponse } from './types';
 import { ResultCard } from './components/ResultCard';
-import { TutorialModal } from './components/TutorialModal';
+import { TutorialModal, TOUR_STEPS } from './components/TutorialModal';
 import { GraduationCap, Sparkles, Loader2, Clock, ArrowRight, History, Trash2, ChevronLeft, HelpCircle, Search, X } from 'lucide-react';
 
 type ViewState = 'home' | 'result' | 'history';
@@ -16,7 +15,11 @@ function App() {
   const [result, setResult] = useState<VocabularyResponse | null>(null);
   const [history, setHistory] = useState<VocabularyResponse[]>([]);
   const [view, setView] = useState<ViewState>('home');
-  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  
+  // Tour State
+  const [isTutorialActive, setIsTutorialActive] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  
   const [confirmClear, setConfirmClear] = useState(false);
 
   // Load history from local storage on mount and check for tutorial
@@ -27,32 +30,39 @@ function App() {
         setHistory(JSON.parse(savedHistory));
       } catch (e) {
         console.error("Failed to parse history", e);
-        // If corrupt, clear it
         localStorage.removeItem('vocabMasterHistory');
       }
     }
 
-    // Check if user has seen tutorial
-    const hasSeenTutorial = localStorage.getItem('vocabMaster_hasSeenTutorial_v1');
+    // Check if user has seen tutorial - using v2 key for new tour type
+    const hasSeenTutorial = localStorage.getItem('vocabMaster_hasSeenTutorial_v2'); 
     if (!hasSeenTutorial) {
-      setIsTutorialOpen(true);
+      startTour();
     }
   }, []);
 
-  const handleCloseTutorial = () => {
-    setIsTutorialOpen(false);
-    localStorage.setItem('vocabMaster_hasSeenTutorial_v1', 'true');
+  const startTour = () => {
+    setIsTutorialActive(true);
+    setTourStep(0);
+    setView('home'); // Ensure we start at home
   };
 
-  const handleOpenTutorial = () => {
-    setIsTutorialOpen(true);
+  const handleCloseTutorial = () => {
+    setIsTutorialActive(false);
+    localStorage.setItem('vocabMaster_hasSeenTutorial_v2', 'true');
+  };
+
+  const nextTourStep = () => {
+    if (tourStep < TOUR_STEPS.length - 1) {
+      setTourStep(prev => prev + 1);
+    } else {
+      handleCloseTutorial();
+    }
   };
 
   const addToHistory = (newItem: VocabularyResponse) => {
     setHistory(prevHistory => {
-      // Remove if exists (to move to top)
       const filtered = prevHistory.filter(item => item.word.toLowerCase() !== newItem.word.toLowerCase());
-      // Add new item to top.
       const newHistory = [newItem, ...filtered];
       localStorage.setItem('vocabMasterHistory', JSON.stringify(newHistory));
       return newHistory;
@@ -66,7 +76,6 @@ function App() {
       setConfirmClear(false);
     } else {
       setConfirmClear(true);
-      // Auto-reset confirmation state after 3 seconds
       setTimeout(() => setConfirmClear(false), 3000);
     }
   };
@@ -100,9 +109,6 @@ function App() {
 
     setIsLoading(true);
     setError(null);
-    
-    // If we are searching a new word, we might want to clear the current result temporarily
-    // or keep it until the new one loads. Let's clear it to show loading state clearly.
     setResult(null);
 
     try {
@@ -112,6 +118,12 @@ function App() {
       addToHistory(lessonData);
       setView('result');
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Special Tour Logic: If we are on Step 0 (Search), advance to Step 1 (Audio)
+      // This satisfies "Force interaction" requirement
+      if (isTutorialActive && tourStep === 0) {
+        setTourStep(1);
+      }
 
     } catch (err: any) {
       console.error("Operation failed:", err);
@@ -119,14 +131,19 @@ function App() {
     } finally {
       setIsLoading(false);
     }
-  }, [word, context]);
+  }, [word, context, isTutorialActive, tourStep]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 pb-20 transition-colors duration-300 flex flex-col">
-      <TutorialModal isOpen={isTutorialOpen} onClose={handleCloseTutorial} />
+      <TutorialModal 
+        isOpen={isTutorialActive} 
+        currentStepIndex={tourStep}
+        onNext={nextTourStep}
+        onClose={handleCloseTutorial} 
+      />
       
       {/* Header / Hero */}
-      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-colors duration-300">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 transition-colors duration-300">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 shrink-0">
             <button 
@@ -138,7 +155,7 @@ function App() {
             </button>
           </div>
           
-          {/* Navbar Search - Only visible when NOT on home */}
+          {/* Navbar Search */}
           {view !== 'home' && (
              <form onSubmit={handleSubmit} className="flex-1 max-w-md mx-2 animate-fade-in">
                <div className="relative group">
@@ -167,9 +184,9 @@ function App() {
 
           <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={handleOpenTutorial}
+              onClick={startTour}
               className="p-2 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
-              title="Help / Tutorial"
+              title="Reset Tutorial"
             >
               <HelpCircle size={20} />
             </button>
@@ -191,12 +208,11 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 md:py-12 w-full flex-grow">
+      <main className="max-w-5xl mx-auto px-4 py-8 md:py-12 w-full flex-grow z-0">
         
         {/* SEARCH / HOME VIEW */}
         {view === 'home' && (
           <div className="animate-fade-in">
-            {/* Introduction */}
             <div className="text-center max-w-2xl mx-auto mb-12">
               <h2 className="text-4xl font-serif font-bold text-slate-900 dark:text-slate-100 mb-4">
                 Master English,<br /> One Word at a Time.
@@ -206,10 +222,10 @@ function App() {
               </p>
             </div>
 
-            {/* Search Form */}
+            {/* Search Form with Tour ID */}
             <div className="max-w-xl mx-auto mb-16">
               <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row gap-2 transition-colors duration-300">
-                <div className="flex-1 flex flex-col justify-center px-4 py-2">
+                <div className="flex-1 flex flex-col justify-center px-4 py-2" id="tour-search-input">
                   <label htmlFor="word" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Word</label>
                   <input
                     id="word"
@@ -218,7 +234,7 @@ function App() {
                     onChange={(e) => setWord(e.target.value)}
                     placeholder="e.g. Ephemeral"
                     className="w-full bg-transparent outline-none text-slate-800 dark:text-slate-100 font-serif text-lg placeholder:text-slate-300 dark:placeholder:text-slate-600"
-                    required
+                    autoFocus={isTutorialActive && tourStep === 0}
                   />
                 </div>
                 <div className="w-px bg-slate-100 dark:bg-slate-800 hidden md:block transition-colors"></div>
@@ -242,7 +258,6 @@ function App() {
               </form>
             </div>
 
-            {/* Error State */}
             {error && (
               <div className="max-w-xl mx-auto mb-8 p-4 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-200 rounded-lg border border-red-100 dark:border-red-900 text-center">
                 <span className="font-bold block mb-1">Not Found:</span>
@@ -250,7 +265,6 @@ function App() {
               </div>
             )}
 
-            {/* Recent Studies (Limit to top 6 on home) */}
             {history.length > 0 && (
               <div className="max-w-5xl mx-auto">
                 <div className="flex items-center justify-between mb-6 px-2">
@@ -298,8 +312,10 @@ function App() {
         {/* RESULT VIEW */}
         {view === 'result' && result && (
           <div className="animate-slide-up">
-            {/* Removed 'Back to Search' button as the search bar is now in header */}
-            <ResultCard data={result} />
+            <ResultCard 
+              data={result} 
+              onTourAction={() => isTutorialActive ? nextTourStep() : undefined}
+            />
           </div>
         )}
 

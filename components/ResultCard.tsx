@@ -1,13 +1,13 @@
-
 import React from 'react';
 import { VocabularyResponse } from '../types';
 import { Volume2, BookOpen, PenTool, MessageCircle, Info, Layers, Image as ImageIcon, GitBranch } from 'lucide-react';
 
 interface ResultCardProps {
   data: VocabularyResponse;
+  onTourAction?: () => void;
 }
 
-export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
+export const ResultCard: React.FC<ResultCardProps> = ({ data, onTourAction }) => {
   // YouGlish URL for pronunciation
   const youglishUrl = `https://youglish.com/pronounce/${encodeURIComponent(data.word)}/english?`;
   
@@ -19,6 +19,13 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
     const utterance = new SpeechSynthesisUtterance(data.word);
     utterance.lang = 'en-US';
     window.speechSynthesis.speak(utterance);
+    
+    // If in tour mode, clicking this advances the tour
+    if (onTourAction) onTourAction();
+  };
+
+  const handleLinkClick = () => {
+    if (onTourAction) onTourAction();
   };
 
   return (
@@ -37,6 +44,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
               
               <div className="flex items-center bg-white/10 rounded-full p-1 ml-2">
                 <button 
+                  id="tour-audio-btn"
                   onClick={playAudio}
                   className="p-2 hover:bg-white/20 rounded-full transition-colors"
                   title="Listen to standard pronunciation"
@@ -70,18 +78,22 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
             <div className="flex flex-col gap-3">
               <div className="flex gap-2">
                 <a 
+                    id="tour-youglish-btn"
                     href={youglishUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
+                    onClick={handleLinkClick}
                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors text-sm font-medium"
                 >
                     <Volume2 size={16} />
                     YouGlish
                 </a>
                 <a 
+                    id="tour-images-btn"
                     href={googleImagesUrl} 
                     target="_blank" 
                     rel="noopener noreferrer"
+                    onClick={handleLinkClick}
                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors text-sm font-medium"
                 >
                     <ImageIcon size={16} />
@@ -90,7 +102,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
               </div>
             </div>
 
-            {/* Grammar Forms - New Section */}
+            {/* Grammar Forms */}
             {data.forms && data.forms.length > 0 && (
               <section className="bg-slate-50 dark:bg-slate-950 rounded-xl p-5 border border-slate-100 dark:border-slate-800">
                  <div className="flex items-center gap-2 text-brand-700 dark:text-brand-400 mb-3">
@@ -161,7 +173,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
         </div>
 
         {/* Practice Activity */}
-        <section className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
+        <section id="tour-study-prompts" className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3 mb-6">
             <h3 className="text-2xl font-serif font-bold text-slate-800 dark:text-slate-100">Study Prompts</h3>
           </div>
