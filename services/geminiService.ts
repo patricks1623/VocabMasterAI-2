@@ -1,58 +1,136 @@
+import { GoogleGenAI, Type } from "@google/genai";
 import { GenerateRequest, VocabularyResponse, PronunciationResult } from "../types";
 
+// Initialize the client with the API key from environment variables
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
 /**
- * MOCK SERVICE IMPLEMENTATION
- * 
- * Since the API Key requirement has been removed, this service now simulates
- * the behavior of the AI by returning generated placeholder data.
- * This allows the UI/UX to be tested and demonstrated without external dependencies.
+ * Generates a vocabulary lesson using Gemini 2.5 Flash.
  */
-
-// Helper to simulate network delay
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
 export const generateVocabularyLesson = async (request: GenerateRequest): Promise<VocabularyResponse> => {
-  await delay(1500); // Simulate "Thinking..." time
+  const { word, context } = request;
+  
+  // Construct the prompt
+  const prompt = `Generate a comprehensive vocabulary lesson for the English word "${word}"${context ? ` in the context of "${context}"` : ""}.
+  Include meaning, phonetics, part of speech, 3 example sentences, a grammar note, related expressions (optional), and practice tasks (speaking prompt and writing task).`;
 
-  const word = request.word.trim();
-  const context = request.context || "General context";
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            word: { type: Type.STRING },
+            meaning: { type: Type.STRING },
+            phonetics: { type: Type.STRING },
+            partOfSpeech: { type: Type.STRING },
+            exampleSentences: { 
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            grammarNote: { type: Type.STRING },
+            relatedExpressions: { type: Type.STRING },
+            practice: {
+              type: Type.OBJECT,
+              properties: {
+                speakingPrompt: { type: Type.STRING },
+                writingTask: { type: Type.STRING },
+              },
+              required: ["speakingPrompt", "writingTask"]
+            },
+          },
+          required: ["word", "meaning", "phonetics", "partOfSpeech", "exampleSentences", "grammarNote", "practice"],
+        },
+      },
+    });
 
-  // Return a realistic-looking structure based on the input word
-  return {
-    word: word,
-    meaning: `[SIMULATED] This is a simulated definition for "${word}". In a real version, the AI would explain this accurately based on the context: "${context}".`,
-    phonetics: `/ˈsɪmjʊˌleɪtɪd/`,
-    partOfSpeech: "Noun/Verb (Simulated)",
-    exampleSentences: [
-      `This is the first example sentence using the word "${word}".`,
-      `Here is another situation where "${word}" might be used appropriately.`,
-      `Finally, a third example demonstrating "${word}" in a complex structure.`
-    ],
-    grammarNote: `Typically, "${word}" is used in formal or informal contexts. This is a placeholder for actual grammar rules.`,
-    relatedExpressions: "Piece of cake, Break a leg, Once in a blue moon",
-    imageUrl: undefined, // Will be handled by the image generator mock
-    practice: {
-      speakingPrompt: `Describe a situation where you would use the word "${word}".`,
-      writingTask: `Write a short paragraph (3-4 sentences) incorporating "${word}".`
-    }
-  };
+    // The response text is guaranteed to be JSON due to responseMimeType
+    const data = JSON.parse(response.text || "{}");
+    
+    return {
+      ...data,
+      // Ensure word matches request if model varies capitalization slightly, or use model's version
+      word: data.word || word, 
+      imageUrl: undefined // Handled by generateImageForWord
+    };
+
+  } catch (error) {
+    console.error("Gemini API Error in generateVocabularyLesson:", error);
+    throw new Error("Failed to generate vocabulary lesson. Please check your API key.");
+  }
 };
 
+/**
+ * Generates an image for the word using Gemini 2.5 Flash Image.
+ */
 export const generateImageForWord = async (word: string): Promise<string | undefined> => {
-  await delay(1000); // Simulate image generation time
-  // Return a generic placeholder image with the word text
-  return `https://placehold.co/800x600/14b8a6/ffffff?text=${encodeURIComponent(word)}`;
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: `Generate a clear, educational illustration for the word "${word}".`,
+      // No responseMimeType or responseSchema for image generation on this model
+    });
+
+    // Iterate through parts to find the image
+    if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+        if (part.inlineData && part.inlineData.data) {
+          return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+      }
+    }
+    return undefined;
+  } catch (error) {
+    console.error("Gemini API Error in generateImageForWord:", error);
+    // Fallback to loremflickr if API fails
+    return `https://loremflickr.com/800/600/${encodeURIComponent(word)}?lock=${Math.floor(Math.random() * 100)}`;
+  }
 };
 
+/**
+ * Evaluates pronunciation using Gemini 2.5 Flash with audio input.
+ */
 export const evaluatePronunciation = async (word: string, base64Audio: string, mimeType: string): Promise<PronunciationResult> => {
-  await delay(2000); // Simulate audio analysis time
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: {
+        parts: [
+          {
+            text: `Evaluate the pronunciation of the word "${word}" in this audio. Provide a score (0-100), feedback, and an improvement tip.`
+          },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: base64Audio
+            }
+          }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            score: { type: Type.NUMBER },
+            feedback: { type: Type.STRING },
+            improvementTip: { type: Type.STRING }
+          },
+          required: ["score", "feedback", "improvementTip"]
+        }
+      }
+    });
 
-  // Generate a random score between 60 and 95
-  const randomScore = Math.floor(Math.random() * (95 - 60 + 1)) + 60;
-
-  return {
-    score: randomScore,
-    feedback: `[SIMULATED] Good effort pronouncing "${word}"! Since this is a demo mode without AI, we cannot analyze the actual audio file provided.`,
-    improvementTip: "Try to articulate the vowel sounds more clearly and pay attention to the stress on the second syllable."
-  };
+    return JSON.parse(response.text || "{}");
+  } catch (error) {
+    console.error("Gemini API Error in evaluatePronunciation:", error);
+     return {
+      score: 0,
+      feedback: "Unable to evaluate pronunciation at this time.",
+      improvementTip: "Please check your connection and try again."
+    };
+  }
 };

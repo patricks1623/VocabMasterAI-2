@@ -16,6 +16,9 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
+  // Cambridge Dictionary URL
+  const cambridgeUrl = `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(data.word.toLowerCase())}`;
+  
   // YouGlish URL for pronunciation
   const youglishUrl = `https://youglish.com/pronounce/${encodeURIComponent(data.word)}/english?`;
   
@@ -218,7 +221,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
               <section className="rounded-xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm">
                  <div className="flex items-center gap-2 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 px-4 py-2 text-xs font-bold uppercase tracking-wider border-b border-slate-100 dark:border-slate-800">
                   <ImageIcon size={14} />
-                  <span>AI Visualization</span>
+                  <span>Visualization</span>
                 </div>
                 <img 
                   src={data.imageUrl} 
@@ -246,23 +249,34 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
              {/* External Links */}
             <div className="flex flex-col gap-3">
               <a 
-                href={youglishUrl} 
+                href={cambridgeUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors text-sm font-medium w-full"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 rounded-lg transition-colors text-sm font-medium w-full border border-indigo-100 dark:border-indigo-800"
               >
                 <ExternalLink size={16} />
-                Practice on YouGlish
+                View on Cambridge Dictionary
               </a>
-              <a 
-                href={googleImagesUrl} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors text-sm font-medium w-full"
-              >
-                <ImageIcon size={16} />
-                See Visual Context
-              </a>
+              <div className="flex gap-2">
+                <a 
+                    href={youglishUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors text-sm font-medium"
+                >
+                    <Volume2 size={16} />
+                    YouGlish
+                </a>
+                <a 
+                    href={googleImagesUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-colors text-sm font-medium"
+                >
+                    <ImageIcon size={16} />
+                    Images
+                </a>
+              </div>
             </div>
           </div>
 
@@ -275,12 +289,16 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
                 <h3 className="font-semibold uppercase tracking-wider text-sm">Example Sentences</h3>
               </div>
               <ul className="space-y-4">
-                {data.exampleSentences.map((sentence, idx) => (
-                  <li key={idx} className="flex gap-3 text-slate-600 dark:text-slate-300">
-                    <span className="text-brand-400 font-bold select-none mt-1">•</span>
-                    <span className="italic leading-relaxed">"{sentence}"</span>
-                  </li>
-                ))}
+                {data.exampleSentences.length > 0 ? (
+                  data.exampleSentences.map((sentence, idx) => (
+                    <li key={idx} className="flex gap-3 text-slate-600 dark:text-slate-300">
+                      <span className="text-brand-400 font-bold select-none mt-1">•</span>
+                      <span className="italic leading-relaxed">"{sentence}"</span>
+                    </li>
+                  ))
+                ) : (
+                  <li className="text-slate-500 italic">No examples available.</li>
+                )}
               </ul>
             </section>
 
@@ -288,7 +306,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
             <section className="border-l-4 border-brand-300 dark:border-brand-700 pl-4 py-1">
               <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 mb-2">
                 <Info size={18} className="text-brand-600 dark:text-brand-500" />
-                <h3 className="font-bold text-sm uppercase">Usage Note</h3>
+                <h3 className="font-bold text-sm uppercase">Grammar & Usage</h3>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                 {data.grammarNote}
@@ -300,7 +318,7 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data }) => {
               <section className="border-l-4 border-amber-300 dark:border-amber-700 pl-4 py-1">
                 <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 mb-2">
                   <Layers size={18} className="text-amber-600 dark:text-amber-500" />
-                  <h3 className="font-bold text-sm uppercase">Related Expressions</h3>
+                  <h3 className="font-bold text-sm uppercase">Related Phrases</h3>
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                   {data.relatedExpressions}
