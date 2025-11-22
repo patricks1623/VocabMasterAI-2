@@ -1,13 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { X, ArrowRight, CheckCircle } from 'lucide-react';
 
-interface Step {
+interface StepConfig {
   targetId: string;
+  position: 'top' | 'bottom' | 'left' | 'right';
+  actionRequired?: boolean;
+}
+
+interface StepContent {
   title: string;
   description: string;
-  position: 'top' | 'bottom' | 'left' | 'right';
-  actionRequired?: boolean; // If true, user must interact with element to proceed
 }
+
+interface Step extends StepConfig, StepContent {}
 
 interface TourGuideProps {
   isOpen: boolean;
@@ -16,50 +21,143 @@ interface TourGuideProps {
   onClose: () => void;
 }
 
-export const TOUR_STEPS: Step[] = [
+// 1. Configuration of steps (structure only)
+const STEPS_CONFIG: StepConfig[] = [
   {
     targetId: 'tour-search-input',
-    title: 'Comece por aqui',
-    description: 'Digite uma palavra (ex: "Resilient") e aperte Enter ou clique na lupa. Você precisa fazer isso para avançar.',
     position: 'bottom',
     actionRequired: true
   },
   {
     targetId: 'tour-audio-btn',
-    title: 'Ouça a Pronúncia',
-    description: 'Não leia mentalmente! Clique no ícone de som para ouvir a pronúncia correta.',
     position: 'right',
     actionRequired: false
   },
   {
     targetId: 'tour-youglish-btn',
-    title: 'Contexto Real',
-    description: 'Clique aqui para ver vídeos reais de nativos usando essa palavra em conversas.',
     position: 'top',
     actionRequired: false
   },
   {
     targetId: 'tour-images-btn',
-    title: 'Memória Visual',
-    description: 'Associe a palavra a uma imagem para fixar melhor o significado.',
     position: 'top',
     actionRequired: false
   },
   {
     targetId: 'tour-study-prompts',
-    title: 'Pratique Agora',
-    description: 'Use estes cenários para praticar fala e escrita imediatamente.',
     position: 'top',
     actionRequired: false
   }
 ];
 
+// 2. Translations
+const TRANSLATIONS: Record<string, StepContent[]> = {
+  pt: [
+    {
+      title: 'Comece por aqui',
+      description: 'Digite uma palavra (ex: "Resilient") e aperte Enter ou clique na lupa. Você precisa fazer isso para avançar.'
+    },
+    {
+      title: 'Ouça a Pronúncia',
+      description: 'Não leia mentalmente! Clique no ícone de som para ouvir a pronúncia correta.'
+    },
+    {
+      title: 'Contexto Real',
+      description: 'Clique aqui para ver vídeos reais de nativos usando essa palavra em conversas.'
+    },
+    {
+      title: 'Memória Visual',
+      description: 'Associe a palavra a uma imagem para fixar melhor o significado.'
+    },
+    {
+      title: 'Pratique Agora',
+      description: 'Use estes cenários para praticar fala e escrita imediatamente.'
+    }
+  ],
+  en: [
+    {
+      title: 'Start Here',
+      description: 'Type a word (e.g., "Resilient") and press Enter or click the search icon. You must do this to proceed.'
+    },
+    {
+      title: 'Listen to Pronunciation',
+      description: 'Don\'t read silently! Click the sound icon to hear the correct pronunciation.'
+    },
+    {
+      title: 'Real Context',
+      description: 'Click here to see real videos of native speakers using this word in conversation.'
+    },
+    {
+      title: 'Visual Memory',
+      description: 'Associate the word with an image to better fix its meaning.'
+    },
+    {
+      title: 'Practice Now',
+      description: 'Use these scenarios to practice speaking and writing immediately.'
+    }
+  ],
+  es: [
+    {
+      title: 'Empieza Aquí',
+      description: 'Escribe una palabra (ej: "Resilient") y presiona Enter. Debes hacer esto para avanzar.'
+    },
+    {
+      title: 'Escucha la Pronunciación',
+      description: '¡No leas en silencio! Haz clic en el icono de sonido para escuchar la pronunciación correcta.'
+    },
+    {
+      title: 'Contexto Real',
+      description: 'Haz clic aquí para ver videos reales de nativos usando esta palabra.'
+    },
+    {
+      title: 'Memoria Visual',
+      description: 'Asocia la palabra con una imagen para fijar mejor su significado.'
+    },
+    {
+      title: 'Practica Ahora',
+      description: 'Usa estos escenarios para practicar el habla y la escritura inmediatamente.'
+    }
+  ]
+};
+
+// 3. Helper to generate localized steps
+const getLocalizedSteps = (): Step[] => {
+  // Safe check for server-side environments, though this is client-side
+  if (typeof navigator === 'undefined') return STEPS_CONFIG.map((cfg, i) => ({ ...cfg, ...TRANSLATIONS['en'][i] }));
+
+  const lang = navigator.language.split('-')[0]; // 'pt-BR' -> 'pt', 'en-US' -> 'en'
+  
+  // Default to English if language not supported
+  const content = TRANSLATIONS[lang] || TRANSLATIONS['en'];
+
+  return STEPS_CONFIG.map((cfg, i) => ({
+    ...cfg,
+    ...content[i]
+  }));
+};
+
+export const TOUR_STEPS = getLocalizedSteps();
+
+// UI Labels for buttons/text based on language
+const UI_LABELS: Record<string, { next: string; finish: string; step: string; interact: string }> = {
+  pt: { next: 'Próximo', finish: 'Concluir', step: 'Passo', interact: 'Interaja para continuar...' },
+  en: { next: 'Next', finish: 'Finish', step: 'Step', interact: 'Interact to continue...' },
+  es: { next: 'Siguiente', finish: 'Terminar', step: 'Paso', interact: 'Interactúa para continuar...' }
+};
+
+const getUiLabels = () => {
+  if (typeof navigator === 'undefined') return UI_LABELS['en'];
+  const lang = navigator.language.split('-')[0];
+  return UI_LABELS[lang] || UI_LABELS['en'];
+};
+
 export const TutorialModal: React.FC<TourGuideProps> = ({ isOpen, currentStepIndex, onNext, onClose }) => {
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
-
+  
   const step = TOUR_STEPS[currentStepIndex];
+  const labels = getUiLabels();
 
   const updatePosition = useCallback(() => {
     if (!step) return;
@@ -76,12 +174,9 @@ export const TutorialModal: React.FC<TourGuideProps> = ({ isOpen, currentStepInd
     }
   }, [step]);
 
-  // Update position on resize, scroll, or step change
   useEffect(() => {
     if (isOpen) {
-      // Initial delay to allow for rendering/animations
       const timer = setTimeout(updatePosition, 500);
-      
       window.addEventListener('resize', updatePosition);
       window.addEventListener('scroll', updatePosition);
       
@@ -93,10 +188,9 @@ export const TutorialModal: React.FC<TourGuideProps> = ({ isOpen, currentStepInd
     }
   }, [isOpen, currentStepIndex, updatePosition]);
 
-  // If not open or no target found, don't render
   if (!isOpen || !step || !targetRect || !isVisible) return null;
 
-  // Calculate Tooltip Position
+  // Tooltip Position Logic
   const tooltipStyle: React.CSSProperties = {
     position: 'fixed',
     zIndex: 60,
@@ -119,23 +213,21 @@ export const TutorialModal: React.FC<TourGuideProps> = ({ isOpen, currentStepInd
     tooltipStyle.right = (windowSize.width - targetRect.left) + gap;
   }
 
-  // Boundary checks to keep tooltip on screen
+  // Boundary checks
   if (tooltipStyle.left && typeof tooltipStyle.left === 'number') {
     if (tooltipStyle.left < 10) tooltipStyle.left = 10;
     if (tooltipStyle.left + 320 > windowSize.width) tooltipStyle.left = windowSize.width - 330;
   }
 
-  // Mask Configuration
-  const maskColor = 'rgba(15, 23, 42, 0.7)'; // Dark slate with opacity
+  // Mask Styles
+  const maskColor = 'rgba(15, 23, 42, 0.7)';
   const zIndexMask = 50;
 
   return (
     <>
       {/* 
-          STRATEGY: 4-Part Mask 
-          Instead of a single overlay with a "hole" (which is hard with CSS) or z-index elevation 
-          (which fights stacking contexts), we render 4 separate divs AROUND the target.
-          This leaves the target physically uncovered, allowing clicks to pass through naturally.
+          FRAME MASK STRATEGY:
+          4 separate divs around the target to create a "hole" for interaction.
       */}
 
       {/* Top Mask */}
@@ -182,7 +274,7 @@ export const TutorialModal: React.FC<TourGuideProps> = ({ isOpen, currentStepInd
         }} 
       />
 
-      {/* Spotlight Ring (Visual indicator, clicks pass through via pointer-events-none) */}
+      {/* Spotlight Ring (Visual only) */}
       <div 
         className="fixed z-50 rounded-lg ring-4 ring-brand-400 ring-opacity-70 animate-pulse pointer-events-none transition-all duration-300"
         style={{
@@ -216,7 +308,7 @@ export const TutorialModal: React.FC<TourGuideProps> = ({ isOpen, currentStepInd
 
         <div className="flex items-center justify-between">
           <span className="text-xs text-slate-400 font-medium uppercase tracking-wider">
-            Passo {currentStepIndex + 1} de {TOUR_STEPS.length}
+            {labels.step} {currentStepIndex + 1} / {TOUR_STEPS.length}
           </span>
           
           {!step.actionRequired && (
@@ -224,18 +316,18 @@ export const TutorialModal: React.FC<TourGuideProps> = ({ isOpen, currentStepInd
               onClick={onNext}
               className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-sm font-bold transition-colors shadow-md"
             >
-              {currentStepIndex === TOUR_STEPS.length - 1 ? 'Concluir' : 'Próximo'}
+              {currentStepIndex === TOUR_STEPS.length - 1 ? labels.finish : labels.next}
               {currentStepIndex === TOUR_STEPS.length - 1 ? <CheckCircle size={14} /> : <ArrowRight size={14} />}
             </button>
           )}
           {step.actionRequired && (
              <span className="text-xs text-brand-600 dark:text-brand-400 font-bold animate-pulse">
-               Interaja para continuar...
+               {labels.interact}
              </span>
           )}
         </div>
 
-        {/* Tooltip Arrow */}
+        {/* Arrow */}
         <div 
           className={`absolute w-4 h-4 bg-white dark:bg-slate-800 transform rotate-45 border-slate-200 dark:border-slate-700 ${
             step.position === 'bottom' ? '-top-2 border-t border-l left-1/2 -ml-2' :
