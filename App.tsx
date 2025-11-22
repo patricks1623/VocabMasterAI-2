@@ -19,7 +19,6 @@ function App() {
   // Tour State
   const [isTutorialActive, setIsTutorialActive] = useState(false);
   const [tourStep, setTourStep] = useState(0);
-  
   const [confirmClear, setConfirmClear] = useState(false);
 
   // Load history from local storage on mount and check for tutorial
@@ -120,7 +119,6 @@ function App() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
       // Special Tour Logic: If we are on Step 0 (Search), advance to Step 1 (Audio)
-      // This satisfies "Force interaction" requirement
       if (isTutorialActive && tourStep === 0) {
         setTourStep(1);
       }
@@ -186,7 +184,7 @@ function App() {
             <button
               onClick={startTour}
               className="p-2 text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors rounded-full hover:bg-slate-100 dark:hover:bg-slate-800"
-              title="Reset Tutorial"
+              title="Reiniciar Tutorial"
             >
               <HelpCircle size={20} />
             </button>
@@ -222,10 +220,10 @@ function App() {
               </p>
             </div>
 
-            {/* Search Form with Tour ID */}
+            {/* Search Form with Tour ID - Moved ID here from inner div to elevate the whole white box */}
             <div className="max-w-xl mx-auto mb-16">
-              <form onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row gap-2 transition-colors duration-300">
-                <div className="flex-1 flex flex-col justify-center px-4 py-2" id="tour-search-input">
+              <form id="tour-search-input" onSubmit={handleSubmit} className="bg-white dark:bg-slate-900 p-2 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-800 flex flex-col md:flex-row gap-2 transition-colors duration-300">
+                <div className="flex-1 flex flex-col justify-center px-4 py-2">
                   <label htmlFor="word" className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Word</label>
                   <input
                     id="word"

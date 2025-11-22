@@ -173,7 +173,8 @@ export const ResultCard: React.FC<ResultCardProps> = ({ data, onTourAction }) =>
         </div>
 
         {/* Practice Activity */}
-        <section id="tour-study-prompts" className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800">
+        {/* Added background color here so when elevated by tour it has opaque background */}
+        <section id="tour-study-prompts" className="mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-xl">
           <div className="flex items-center gap-3 mb-6">
             <h3 className="text-2xl font-serif font-bold text-slate-800 dark:text-slate-100">Study Prompts</h3>
           </div>
